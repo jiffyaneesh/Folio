@@ -9,6 +9,8 @@
 	}
 	let { onopen }: Props = $props();
 
+	const version = '0.1.0';
+
 	let docs = $state<DocumentRecord[]>([]);
 	let dragging = $state(false);
 	let fileInput = $state<HTMLInputElement | null>(null);
@@ -58,6 +60,11 @@
 	role="region"
 	aria-label="Open a document"
 >
+	<div class="orbs" aria-hidden="true">
+		<span class="orb orb-a"></span>
+		<span class="orb orb-b"></span>
+		<span class="orb orb-c"></span>
+	</div>
 	<a
 		class="gh-link"
 		href="https://github.com/aneeshsharma72067"
@@ -93,6 +100,32 @@
 			onchange={(e) => pick((e.target as HTMLInputElement).files)}
 		/>
 	</div>
+
+	{#if !docs.length}
+		<ul class="features">
+			<li>
+				<span class="material-symbols-outlined">ink_highlighter</span>
+				<div>
+					<strong>Highlight & annotate</strong>
+					<span>Mark passages and attach notes as you read.</span>
+				</div>
+			</li>
+			<li>
+				<span class="material-symbols-outlined">search</span>
+				<div>
+					<strong>Full-text search</strong>
+					<span>Find any line across every document instantly.</span>
+				</div>
+			</li>
+			<li>
+				<span class="material-symbols-outlined">cycle</span>
+				<div>
+					<strong>Spaced repetition</strong>
+					<span>Turn highlights into flashcards that resurface on time.</span>
+				</div>
+			</li>
+		</ul>
+	{/if}
 
 	{#if docs.length}
 		<div class="recents">
@@ -132,6 +165,18 @@
 			</div>
 		</div>
 	{/if}
+
+	<footer class="foot">
+		<span>100% local</span>
+		<span class="dot">·</span>
+		<span>no account</span>
+		<span class="dot">·</span>
+		<a href="https://github.com/aneeshsharma72067/Folio" target="_blank" rel="noopener noreferrer">
+			open source
+		</a>
+		<span class="dot">·</span>
+		<span>v{version}</span>
+	</footer>
 </div>
 
 <style>
@@ -174,6 +219,130 @@
 		align-items: center;
 		text-align: center;
 		max-width: 480px;
+		position: relative;
+		z-index: 1;
+	}
+
+	/* Ambient drifting glow behind the hero — atmosphere only, no layout impact. */
+	.orbs {
+		position: absolute;
+		inset: 0;
+		overflow: hidden;
+		pointer-events: none;
+		z-index: 0;
+	}
+	.orb {
+		position: absolute;
+		border-radius: 50%;
+		filter: blur(70px);
+		opacity: 0.4;
+		will-change: transform;
+	}
+	.orb-a {
+		top: 6%;
+		left: 18%;
+		width: 320px;
+		height: 320px;
+		background: radial-gradient(circle, #2d4f8a 0%, transparent 70%);
+		animation: drift-a 22s ease-in-out infinite;
+	}
+	.orb-b {
+		top: 18%;
+		right: 12%;
+		width: 280px;
+		height: 280px;
+		background: radial-gradient(circle, #6a3d8a 0%, transparent 70%);
+		animation: drift-b 28s ease-in-out infinite;
+	}
+	.orb-c {
+		bottom: 8%;
+		left: 40%;
+		width: 360px;
+		height: 360px;
+		background: radial-gradient(circle, #1f6e6a 0%, transparent 70%);
+		animation: drift-c 32s ease-in-out infinite;
+	}
+	@keyframes drift-a {
+		50% {
+			transform: translate(60px, 40px) scale(1.1);
+		}
+	}
+	@keyframes drift-b {
+		50% {
+			transform: translate(-50px, 60px) scale(1.15);
+		}
+	}
+	@keyframes drift-c {
+		50% {
+			transform: translate(40px, -50px) scale(1.05);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.orb {
+			animation: none;
+		}
+	}
+
+	.features {
+		list-style: none;
+		margin: 48px 0 0;
+		padding: 0;
+		width: 100%;
+		max-width: 360px;
+		display: flex;
+		flex-direction: column;
+		gap: 18px;
+		position: relative;
+		z-index: 1;
+	}
+	.features li {
+		display: flex;
+		align-items: flex-start;
+		gap: 14px;
+		text-align: left;
+	}
+	.features li .material-symbols-outlined {
+		font-size: 22px;
+		color: rgba(255, 255, 255, 0.5);
+		flex-shrink: 0;
+		margin-top: 1px;
+	}
+	.features li div {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.features strong {
+		font-size: 14px;
+		font-weight: 500;
+		color: rgba(255, 255, 255, 0.82);
+	}
+	.features li div span {
+		font-size: 12.5px;
+		color: rgba(255, 255, 255, 0.4);
+		line-height: 1.4;
+	}
+
+	.foot {
+		margin-top: auto;
+		padding-top: 48px;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 12px;
+		color: rgba(255, 255, 255, 0.3);
+		position: relative;
+		z-index: 1;
+	}
+	.foot a {
+		color: rgba(255, 255, 255, 0.45);
+		text-decoration: none;
+	}
+	.foot a:hover {
+		color: rgba(255, 255, 255, 0.75);
+	}
+	.foot .dot {
+		opacity: 0.5;
 	}
 	.logo {
 		width: 64px;
