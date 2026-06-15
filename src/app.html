@@ -52,10 +52,30 @@
 			href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
 			rel="stylesheet"
 		/>
+		<!-- display=block: render nothing (not the raw ligature text) until the icon font is ready -->
 		<link
-			href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-25..0&display=swap"
+			href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-25..0&display=block"
 			rel="stylesheet"
 		/>
+		<script>
+			// Reveal icons only once the Material Symbols font has actually loaded,
+			// so ligature names never flash as plain text.
+			(function () {
+				var done = function () {
+					document.documentElement.classList.add('icons-ready');
+				};
+				if (document.fonts && document.fonts.load) {
+					document.fonts
+						.load('24px "Material Symbols Outlined"')
+						.then(done)
+						.catch(done);
+					// Safety net: reveal regardless after 4s so icons never stay hidden.
+					setTimeout(done, 4000);
+				} else {
+					done();
+				}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
