@@ -73,7 +73,7 @@
 		const top = scrollEl.scrollTop;
 		const vh = scrollEl.clientHeight;
 		const next = new Set<number>();
-		let y = 0;
+		let y = 32;
 		let current = app.currentPage;
 		let bestOverlap = -1;
 
@@ -105,10 +105,10 @@
 		const prev = heights.get(page);
 		if (prev !== h) {
 			heights.set(page, h);
-			if (page === 1) {
+			if (page === 1 && Math.abs(estHeight - h) > 5) {
 				estHeight = h;
+				recompute();
 			}
-			recompute();
 		}
 	}
 
@@ -117,16 +117,18 @@
 		const target = Math.min(Math.max(1, page), doc.numPages);
 
 		// Immediately mark target and adjacent pages as visible so rendering starts instantly
-		visiblePages.add(target);
-		if (target > 1) visiblePages.add(target - 1);
-		if (target < doc.numPages) visiblePages.add(target + 1);
+		const next = new Set<number>();
+		for (let p = Math.max(1, target - 2); p <= Math.min(doc.numPages, target + 2); p++) {
+			next.add(p);
+		}
+		visiblePages = next;
+		app.currentPage = target;
 
-		let y = 0;
+		let y = 32;
 		for (let p = 1; p < target; p++) {
 			y += (heights.get(p) ?? estHeight) + 24;
 		}
 		scrollEl.scrollTo({ top: y, behavior });
-		app.currentPage = target;
 	}
 
 	// ── Text selection → floating highlight palette ────────────────────────────
@@ -193,10 +195,14 @@
 		e.preventDefault();
 	}
 
+	let lastAvailWidth = 0;
 	function measureWidth() {
 		if (!scrollEl) return;
-		const avail = scrollEl.clientWidth - 48;
-		colWidth = Math.min(900, Math.max(280, avail)) * app.zoom;
+		const avail = Math.floor(scrollEl.clientWidth - 48);
+		if (Math.abs(avail - lastAvailWidth) > 2) {
+			lastAvailWidth = avail;
+			colWidth = Math.min(900, Math.max(280, avail)) * app.zoom;
+		}
 	}
 
 	$effect(() => {

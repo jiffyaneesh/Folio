@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, tick } from 'svelte';
+	import { onDestroy } from 'svelte';
 	import { TextLayer } from 'pdfjs-dist';
 	import { releaseCanvas } from '../pdf';
 	import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
@@ -16,25 +16,37 @@
 		onsize?: (pageNumber: number, height: number) => void;
 	}
 
-	let { doc, pageNumber, scale, width, visible, highlights, initialAspect = 1.4142, onsize }: Props = $props();
+	let {
+		doc,
+		pageNumber,
+		scale,
+		width,
+		visible,
+		highlights,
+		initialAspect = 1.4142,
+		onsize
+	}: Props = $props();
 
-	let canvas = $state<HTMLCanvasElement | null>(null);
-	let textEl = $state<HTMLDivElement | null>(null);
+	let canvas: HTMLCanvasElement | null = $state(null);
+	let textEl: HTMLDivElement | null = $state(null);
 	let page: PDFPageProxy | null = null;
-	let rendered = $state(false);
+	let rendered = false;
 	let rendering = false;
 	let renderToken = 0;
 	let currentRenderTask: { cancel: () => void; promise: Promise<unknown> } | null = null;
+
+	let lastRenderedScale = 0;
+	let lastRenderedWidth = 0;
+
 	function getAspect() {
 		return initialAspect;
 	}
 	let aspect = $state(getAspect());
-	let cssHeight = $derived(width * aspect);
-
+	let cssHeight = $derived(Math.round(width * aspect));
 	const pageHighlights = $derived(highlights.filter((h) => h.page === pageNumber));
 
 	async function render() {
-		if (!visible || rendered || rendering || !canvas) return;
+		if (!visible || !canvas || rendering) return;
 		rendering = true;
 		const token = ++renderToken;
 
@@ -58,8 +70,8 @@
 			const cssScale = (width / base.width) * scale;
 			const viewport = page.getViewport({ scale: cssScale * dpr });
 
-			canvas.width = viewport.width;
-			canvas.height = viewport.height;
+			canvas.width = Math.floor(viewport.width);
+			canvas.height = Math.floor(viewport.height);
 			canvas.style.width = '100%';
 			canvas.style.height = '100%';
 
@@ -69,8 +81,12 @@
 				return;
 			}
 
-			// Render canvas bitmap
-			currentRenderTask = page.render({ canvas, canvasContext: ctx, viewport, background: '#ffffff' });
+			currentRenderTask = page.render({
+				canvas,
+				canvasContext: ctx,
+				viewport,
+				background: '#ffffff'
+			});
 			await currentRenderTask.promise;
 			currentRenderTask = null;
 
@@ -79,12 +95,12 @@
 				return;
 			}
 
-			// Render selectable text layer
+			// Render selectable text layer using standard PDF.js variables
 			if (textEl) {
 				textEl.replaceChildren();
 				const tvp = page.getViewport({ scale: cssScale });
 				const textContent = await page.getTextContent();
-				if (token === renderToken && textEl) {
+				if (token === renderToken && textEl && visible) {
 					const tl = new TextLayer({
 						textContentSource: textContent,
 						container: textEl,
@@ -94,6 +110,8 @@
 				}
 			}
 
+			lastRenderedScale = scale;
+			lastRenderedWidth = width;
 			rendered = true;
 		} catch (err: unknown) {
 			const e = err as { name?: string };
@@ -116,28 +134,28 @@
 		releaseCanvas(canvas);
 		textEl?.replaceChildren();
 		if (page) {
-			page.cleanup();
+			try {
+				page.cleanup();
+			} catch {}
 		}
 		rendered = false;
 		rendering = false;
 	}
 
-	// Trigger render when visible and canvas is mounted; release when out of viewport
+	// Single reactive effect: render when visible, teardown when out of buffer, re-render on zoom
 	$effect(() => {
-		if (visible && canvas && !rendered && !rendering) {
-			tick().then(render);
-		} else if (!visible && (rendered || rendering)) {
-			teardown();
-		}
-	});
+		const isVis = visible;
+		const s = scale;
+		const w = width;
 
-	// Re-render when zoom/width changes while visible
-	$effect(() => {
-		scale;
-		width;
-		if (visible && canvas && rendered && !rendering) {
-			rendered = false;
-			tick().then(render);
+		if (isVis) {
+			if (!rendered || s !== lastRenderedScale || Math.abs(w - lastRenderedWidth) > 3) {
+				render();
+			}
+		} else {
+			if (rendered || rendering) {
+				teardown();
+			}
 		}
 	});
 
@@ -152,9 +170,10 @@
 	data-page={pageNumber}
 	style="width:{width}px;height:{cssHeight}px;"
 >
+	<canvas bind:this={canvas} class="pdf-canvas" class:is-hidden={!visible}></canvas>
+	<div bind:this={textEl} class="textLayer" class:is-hidden={!visible}></div>
+
 	{#if visible}
-		<canvas bind:this={canvas} class="pdf-canvas"></canvas>
-		<div bind:this={textEl} class="text-layer"></div>
 		<div class="hl-layer">
 			{#each pageHighlights as h (h.id)}
 				{#each h.rects as r}
@@ -166,7 +185,9 @@
 				{/each}
 			{/each}
 		</div>
-	{:else}
+	{/if}
+
+	{#if !visible}
 		<div class="pdf-placeholder">
 			<span class="ph-num">Page {pageNumber}</span>
 		</div>
@@ -183,13 +204,15 @@
 		box-shadow: var(--shadow-soft, 0 4px 16px -4px rgba(15, 23, 42, 0.12));
 		border: 1px solid var(--border);
 		contain: layout paint;
-		transition: box-shadow 0.2s ease;
 	}
 	.pdf-canvas {
 		display: block;
 		width: 100%;
 		height: 100%;
 		background: #ffffff;
+	}
+	.is-hidden {
+		display: none !important;
 	}
 	.pdf-placeholder {
 		width: 100%;
@@ -207,28 +230,50 @@
 		font-weight: 500;
 		letter-spacing: 0.05em;
 	}
-	.text-layer {
+
+	/* Official PDF.js TextLayer CSS Variables and Styles */
+	.textLayer {
 		position: absolute;
+		text-align: initial;
 		inset: 0;
-		overflow: hidden;
-		line-height: 1;
+		overflow: clip;
 		opacity: 1;
+		line-height: 1;
+		letter-spacing: normal;
+		word-spacing: normal;
+		-webkit-text-size-adjust: none;
+		text-size-adjust: none;
+		transform-origin: 0 0;
 		z-index: 2;
-		color: transparent;
+		--min-font-size: 1;
+		--text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+		--min-font-size-inv: calc(1 / var(--min-font-size));
 	}
-	:global(.text-layer span) {
+	:global(.textLayer :is(span, br)) {
+		color: transparent;
 		position: absolute;
 		white-space: pre;
 		cursor: text;
-		transform-origin: 0 0;
-		color: transparent;
+		transform-origin: 0% 0%;
+		-webkit-user-select: text;
+		user-select: text;
 	}
-	:global(.text-layer ::selection) {
+	:global(.textLayer > :not(.markedContent)),
+	:global(.textLayer .markedContent span:not(.markedContent)) {
+		z-index: 1;
+		--font-height: 0;
+		font-size: calc(var(--text-scale-factor) * var(--font-height));
+		--scale-x: 1;
+		--rotate: 0deg;
+		transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+	}
+	:global(.textLayer ::selection) {
 		background: rgba(59, 130, 246, 0.35);
 	}
-	:global(.text-layer br::selection) {
+	:global(.textLayer br::selection) {
 		background: transparent;
 	}
+
 	.hl-layer {
 		position: absolute;
 		inset: 0;
