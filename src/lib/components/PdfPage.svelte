@@ -13,6 +13,7 @@
 		visible: boolean;
 		highlights: HighlightRecord[];
 		initialAspect?: number;
+		priority?: boolean;
 		onsize?: (pageNumber: number, height: number) => void;
 	}
 
@@ -24,6 +25,7 @@
 		visible,
 		highlights,
 		initialAspect = 1.4142,
+		priority = false,
 		onsize
 	}: Props = $props();
 
@@ -123,7 +125,13 @@
 		}
 	}
 
+	let bufferTimer: ReturnType<typeof setTimeout> | null = null;
+
 	function teardown() {
+		if (bufferTimer) {
+			clearTimeout(bufferTimer);
+			bufferTimer = null;
+		}
 		renderToken++;
 		if (currentRenderTask) {
 			try {
@@ -142,17 +150,36 @@
 		rendering = false;
 	}
 
-	// Single reactive effect: render when visible, teardown when out of buffer, re-render on zoom
+	// Single reactive effect: render immediately if priority, or stagger if outer buffer
 	$effect(() => {
 		const isVis = visible;
 		const s = scale;
 		const w = width;
+		const isPri = priority;
 
 		if (isVis) {
-			if (!rendered || s !== lastRenderedScale || Math.abs(w - lastRenderedWidth) > 3) {
-				render();
+			const needsRender = !rendered || s !== lastRenderedScale || Math.abs(w - lastRenderedWidth) > 3;
+			if (needsRender && !rendering) {
+				if (bufferTimer) {
+					clearTimeout(bufferTimer);
+					bufferTimer = null;
+				}
+				if (isPri) {
+					render();
+				} else {
+					bufferTimer = setTimeout(() => {
+						bufferTimer = null;
+						if (visible && !rendered && !rendering) {
+							render();
+						}
+					}, 60);
+				}
 			}
 		} else {
+			if (bufferTimer) {
+				clearTimeout(bufferTimer);
+				bufferTimer = null;
+			}
 			if (rendered || rendering) {
 				teardown();
 			}

@@ -17,8 +17,6 @@
 	let colWidth = $state(680);
 	let documentAspect = $state(1.4142);
 	let visiblePages = $state<Set<number>>(new Set([1]));
-	let heights = new Map<number, number>(); // measured page heights
-	let estHeight = $state(900);
 	let selectionBtn = $state<{ x: number; y: number } | null>(null);
 	let pendingSel: { page: number; text: string; rects: HighlightRect[] } | null = null;
 
@@ -29,7 +27,82 @@
 		{ label: 'Pink', color: 'rgba(244, 63, 94, 0.35)', dot: '#f43f5e' }
 	];
 
+	const BUNCH_SIZE = 20; // Generous 20 pages before + 20 pages after for buttery smooth scrolling
+	const BUNCH_SHIFT_THRESHOLD = 5; // Only slide window when moved >= 5 pages to avoid continuous re-renders
+	let lastBunchCenter = 0;
+	let isJumping = false;
+	let jumpTimeout: ReturnType<typeof setTimeout> | null = null;
 	let rafScroll = 0;
+
+	function getPageEl(page: number): HTMLElement | null {
+		if (!scrollEl) return null;
+		// Fast O(1) direct children lookup
+		const direct = scrollEl.children[page - 1] as HTMLElement | undefined;
+		if (direct && direct.dataset?.page === String(page)) {
+			return direct;
+		}
+		return scrollEl.querySelector<HTMLElement>(`[data-page="${page}"]`);
+	}
+
+	function findCurrentPage(): number {
+		if (!scrollEl || !doc || doc.numPages === 0) return 1;
+		const targetY = scrollEl.scrollTop + scrollEl.clientHeight * 0.4;
+		let low = 1;
+		let high = doc.numPages;
+		let result = 1;
+
+		while (low <= high) {
+			const mid = Math.floor((low + high) / 2);
+			const el = getPageEl(mid);
+			if (!el) break;
+
+			const top = el.offsetTop;
+			const bottom = top + el.offsetHeight + 24;
+
+			if (targetY >= top && targetY < bottom) {
+				return mid;
+			} else if (targetY < top) {
+				high = mid - 1;
+				result = mid;
+			} else {
+				low = mid + 1;
+				result = mid;
+			}
+		}
+		return Math.min(Math.max(1, result), doc.numPages);
+	}
+
+	function updateBunch(centerPage: number, force = false) {
+		if (!doc) return;
+		if (!force && Math.abs(centerPage - lastBunchCenter) < BUNCH_SHIFT_THRESHOLD) {
+			return;
+		}
+		lastBunchCenter = centerPage;
+		const start = Math.max(1, centerPage - BUNCH_SIZE);
+		const end = Math.min(doc.numPages, centerPage + BUNCH_SIZE);
+
+		const next = new Set<number>();
+		for (let p = start; p <= end; p++) {
+			next.add(p);
+		}
+		visiblePages = next;
+	}
+
+	function scrollTargetIntoView(target: number, behavior: ScrollBehavior) {
+		const el = getPageEl(target);
+		if (el && scrollEl) {
+			const top = Math.max(0, el.offsetTop - 16);
+			scrollEl.scrollTo({ top, behavior });
+		} else {
+			requestAnimationFrame(() => {
+				const elRetry = getPageEl(target);
+				if (elRetry && scrollEl) {
+					const top = Math.max(0, elRetry.offsetTop - 16);
+					scrollEl.scrollTo({ top, behavior });
+				}
+			});
+		}
+	}
 
 	async function init() {
 		if (!app.pdfData) return;
@@ -40,22 +113,17 @@
 		const baseAspect = await getDocumentBaseAspect(doc);
 		documentAspect = baseAspect;
 		measureWidth();
-		estHeight = Math.round(colWidth * baseAspect);
 
 		// Extract embedded PDF bookmarks/outline
 		extractOutline(doc).then((o) => (app.outline = o));
 
-		// Immediate restoration to saved page
+		// Immediate restoration to saved page with generous bunch lookahead
 		const targetPage = Math.min(Math.max(1, app.currentPage), doc.numPages);
-		const initialPages = new Set<number>();
-		for (let p = Math.max(1, targetPage - 1); p <= Math.min(doc.numPages, targetPage + 1); p++) {
-			initialPages.add(p);
-		}
-		visiblePages = initialPages;
+		app.currentPage = targetPage;
+		updateBunch(targetPage, true);
 
 		requestAnimationFrame(() => {
-			goTo(targetPage, 'auto');
-			recompute();
+			scrollTargetIntoView(targetPage, 'auto');
 		});
 	}
 
@@ -67,68 +135,32 @@
 		});
 	}
 
-	// Determine which pages intersect the viewport (+ lookahead buffer)
+	// Determine which page is active via DOM binary search and shift bunch window smoothly
 	function recompute() {
-		if (!scrollEl || !doc) return;
-		const top = scrollEl.scrollTop;
-		const vh = scrollEl.clientHeight;
-		const next = new Set<number>();
-		let y = 32;
-		let current = app.currentPage;
-		let bestOverlap = -1;
-
-		for (let p = 1; p <= doc.numPages; p++) {
-			const h = (heights.get(p) ?? estHeight) + 24;
-			const pTop = y;
-			const pBottom = y + h;
-
-			// Generous 700px lookahead buffer ensures smooth scrolling without missing pages
-			if (pBottom > top - 700 && pTop < top + vh + 700) {
-				next.add(p);
-			}
-
-			// Page occupying most of viewport center = current
-			const overlap = Math.min(pBottom, top + vh) - Math.max(pTop, top);
-			if (overlap > bestOverlap) {
-				bestOverlap = overlap;
-				current = p;
-			}
-			y += h;
-		}
-		visiblePages = next;
+		if (!scrollEl || !doc || isJumping) return;
+		const current = findCurrentPage();
 		if (current !== app.currentPage) {
 			app.currentPage = current;
 		}
-	}
-
-	function onSize(page: number, h: number) {
-		const prev = heights.get(page);
-		if (prev !== h) {
-			heights.set(page, h);
-			if (page === 1 && Math.abs(estHeight - h) > 5) {
-				estHeight = h;
-				recompute();
-			}
-		}
+		updateBunch(current, false);
 	}
 
 	export function goTo(page: number, behavior: ScrollBehavior = 'smooth') {
 		if (!scrollEl || !doc) return;
 		const target = Math.min(Math.max(1, page), doc.numPages);
+		const distance = Math.abs(target - app.currentPage);
+		const effectiveBehavior: ScrollBehavior = distance > 5 ? 'auto' : behavior;
 
-		// Immediately mark target and adjacent pages as visible so rendering starts instantly
-		const next = new Set<number>();
-		for (let p = Math.max(1, target - 2); p <= Math.min(doc.numPages, target + 2); p++) {
-			next.add(p);
-		}
-		visiblePages = next;
 		app.currentPage = target;
+		updateBunch(target, true);
 
-		let y = 32;
-		for (let p = 1; p < target; p++) {
-			y += (heights.get(p) ?? estHeight) + 24;
-		}
-		scrollEl.scrollTo({ top: y, behavior });
+		isJumping = true;
+		if (jumpTimeout) clearTimeout(jumpTimeout);
+		jumpTimeout = setTimeout(() => {
+			isJumping = false;
+		}, effectiveBehavior === 'smooth' ? 450 : 120);
+
+		scrollTargetIntoView(target, effectiveBehavior);
 	}
 
 	// ── Text selection → floating highlight palette ────────────────────────────
@@ -254,8 +286,8 @@
 				width={colWidth}
 				initialAspect={documentAspect}
 				visible={visiblePages.has(i + 1)}
+				priority={Math.abs(i + 1 - app.currentPage) <= 2}
 				{highlights}
-				onsize={onSize}
 			/>
 		{/each}
 	{/if}
@@ -296,7 +328,6 @@
 		overflow-x: hidden;
 		padding: 32px 24px calc(90px + env(safe-area-inset-bottom));
 		position: relative;
-		scroll-behavior: smooth;
 		background: var(--reader-bg);
 		outline: none;
 	}
