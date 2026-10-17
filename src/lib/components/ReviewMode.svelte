@@ -9,9 +9,10 @@
 	}
 	let { cards, onclose }: Props = $props();
 
-	// Snapshot the due queue when review opens (intentionally captures initial value).
-	const initialQueue = cards.filter((c) => isDue(c, Date.now()));
-	let queue = $state<FlashcardRecord[]>(initialQueue);
+	function getInitialQueue() {
+		return cards.filter((c) => isDue(c, Date.now()));
+	}
+	let queue = $state<FlashcardRecord[]>(getInitialQueue());
 	let idx = $state(0);
 	let flipped = $state(false);
 	let done = $derived(idx >= queue.length);
@@ -41,7 +42,7 @@
 
 <svelte:window onkeydown={onKey} />
 
-<div class="overlay" role="dialog" aria-modal="true">
+<div class="overlay" role="dialog" aria-modal="true" aria-label="Active Recall Review">
 	<div class="sheet">
 		<header class="sheet-head">
 			<div class="head-meta">
@@ -51,7 +52,7 @@
 			<div class="counter">
 				{#if !done}{Math.min(idx + 1, queue.length)} / {queue.length}{:else}Done{/if}
 			</div>
-			<button class="close" onclick={onclose} aria-label="Close">
+			<button class="close" onclick={onclose} aria-label="Close review dialog">
 				<span class="material-symbols-outlined">close</span>
 			</button>
 		</header>
@@ -70,27 +71,39 @@
 		{:else if current}
 			<button class="card" class:flipped onclick={() => (flipped = !flipped)}>
 				<div class="card-side front">
-					<span class="side-label">Prompt</span>
+					<span class="side-label">Citation Prompt</span>
 					<p>{current.front}</p>
-					<span class="hint">Tap or press space to flip</span>
+					<span class="hint">Tap or press space to reveal answer</span>
 				</div>
 				{#if flipped}
 					<div class="card-side back">
-						<span class="side-label">Answer</span>
-						<p>{current.back || 'No note attached to this highlight yet.'}</p>
+						<span class="side-label">Your Note / Key Insight</span>
+						<p>{current.back || 'No note attached to this citation.'}</p>
 					</div>
 				{/if}
 			</button>
 
 			{#if flipped}
 				<div class="grades">
-					<button class="grade again" onclick={() => grade(2)}>Again</button>
-					<button class="grade hard" onclick={() => grade(3)}>Hard</button>
-					<button class="grade good" onclick={() => grade(4)}>Good</button>
-					<button class="grade easy" onclick={() => grade(5)}>Easy</button>
+					<button class="grade again" onclick={() => grade(2)}>
+						<span>Again</span>
+						<span class="key-hint">1</span>
+					</button>
+					<button class="grade hard" onclick={() => grade(3)}>
+						<span>Hard</span>
+						<span class="key-hint">2</span>
+					</button>
+					<button class="grade good" onclick={() => grade(4)}>
+						<span>Good</span>
+						<span class="key-hint">3</span>
+					</button>
+					<button class="grade easy" onclick={() => grade(5)}>
+						<span>Easy</span>
+						<span class="key-hint">4</span>
+					</button>
 				</div>
 			{:else}
-				<div class="prompt-hint">Recall the answer, then reveal</div>
+				<div class="prompt-hint">Recall the answer, then flip</div>
 			{/if}
 		{/if}
 	</div>
@@ -100,7 +113,7 @@
 	.overlay {
 		position: fixed;
 		inset: 0;
-		background: rgba(0, 0, 0, 0.6);
+		background: rgba(0, 0, 0, 0.55);
 		backdrop-filter: blur(8px);
 		-webkit-backdrop-filter: blur(8px);
 		display: flex;
@@ -108,9 +121,7 @@
 		justify-content: center;
 		z-index: 100;
 		padding: 24px;
-		padding-top: calc(24px + env(safe-area-inset-top));
-		padding-bottom: calc(24px + env(safe-area-inset-bottom));
-		animation: fade 0.2s ease;
+		animation: fade 0.2s var(--transition-smooth);
 	}
 	@keyframes fade {
 		from {
@@ -120,17 +131,18 @@
 	.sheet {
 		width: 100%;
 		max-width: 480px;
-		background: #141416;
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 20px;
-		padding: 20px;
-		box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8);
-		animation: rise 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+		background: var(--card);
+		color: var(--foreground);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-xl, 18px);
+		padding: 22px;
+		box-shadow: var(--shadow-elevated);
+		animation: rise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 	}
 	@keyframes rise {
 		from {
 			opacity: 0;
-			transform: translateY(16px) scale(0.98);
+			transform: translateY(14px) scale(0.98);
 		}
 	}
 	.sheet-head {
@@ -145,35 +157,38 @@
 		gap: 8px;
 		font-size: 13px;
 		font-weight: 500;
-		color: rgba(255, 255, 255, 0.85);
+		color: var(--foreground);
 	}
 	.head-meta .material-symbols-outlined {
 		font-size: 18px;
-		color: rgba(255, 255, 255, 0.6);
+		color: var(--accent);
 	}
 	.counter {
-		font-family: ui-monospace, monospace;
+		font-family: ui-monospace, 'JetBrains Mono', monospace;
 		font-size: 12px;
-		color: rgba(255, 255, 255, 0.4);
+		color: var(--muted-foreground);
 	}
 	.close {
 		background: transparent;
 		border: none;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--muted-foreground);
 		cursor: pointer;
 		display: flex;
+		padding: 2px;
+		border-radius: var(--radius-sm, 4px);
+		transition: color 0.15s ease;
 	}
 	.close:hover {
-		color: #fff;
+		color: var(--foreground);
 	}
 	.card {
 		width: 100%;
-		min-height: 240px;
+		min-height: 230px;
 		text-align: left;
-		background: linear-gradient(160deg, #1d1d20, #161618);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 16px;
-		padding: 24px;
+		background: var(--secondary);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg, 12px);
+		padding: 22px;
 		cursor: pointer;
 		display: flex;
 		flex-direction: column;
@@ -181,38 +196,39 @@
 		transition: border-color 0.15s ease;
 	}
 	.card:hover {
-		border-color: rgba(255, 255, 255, 0.16);
+		border-color: var(--accent);
 	}
 	.card-side {
 		display: flex;
 		flex-direction: column;
-		gap: 10px;
+		gap: 8px;
 	}
 	.card-side.back {
-		border-top: 1px solid rgba(255, 255, 255, 0.08);
+		border-top: 1px solid var(--border);
 		padding-top: 14px;
-		animation: fade 0.2s ease;
+		animation: fade 0.18s ease;
 	}
 	.side-label {
 		font-size: 10px;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
-		color: rgba(255, 255, 255, 0.3);
+		color: var(--muted-foreground);
+		font-weight: 500;
 	}
 	.card-side p {
 		margin: 0;
-		font-size: 16px;
+		font-size: 15px;
 		line-height: 1.6;
-		color: rgba(255, 255, 255, 0.9);
+		color: var(--foreground);
 	}
 	.card-side.back p {
-		font-size: 15px;
-		color: rgba(255, 255, 255, 0.7);
+		font-size: 14.5px;
+		color: var(--foreground);
 	}
 	.hint {
 		margin-top: auto;
 		font-size: 11px;
-		color: rgba(255, 255, 255, 0.25);
+		color: var(--muted-foreground);
 	}
 	.grades {
 		display: grid;
@@ -221,31 +237,39 @@
 		margin-top: 16px;
 	}
 	.grade {
-		padding: 12px 0;
-		border-radius: 10px;
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		background: rgba(255, 255, 255, 0.04);
-		color: rgba(255, 255, 255, 0.8);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2px;
+		padding: 10px 0;
+		border-radius: var(--radius-md, 8px);
+		border: 1px solid var(--border);
+		background: var(--secondary);
+		color: var(--foreground);
 		font-size: 13px;
 		font-weight: 500;
 		cursor: pointer;
 		transition: all 0.15s ease;
 	}
 	.grade:hover {
-		background: rgba(255, 255, 255, 0.1);
+		background: var(--muted);
+		border-color: var(--accent);
 		transform: translateY(-1px);
 	}
 	.again:hover {
-		border-color: rgba(255, 120, 120, 0.5);
+		border-color: var(--destructive);
+		color: var(--destructive);
 	}
-	.easy:hover {
-		border-color: rgba(120, 220, 150, 0.5);
+	.key-hint {
+		font-size: 10px;
+		font-family: ui-monospace, 'JetBrains Mono', monospace;
+		color: var(--muted-foreground);
 	}
 	.prompt-hint {
 		text-align: center;
 		margin-top: 16px;
 		font-size: 12px;
-		color: rgba(255, 255, 255, 0.3);
+		color: var(--muted-foreground);
 	}
 	.empty {
 		display: flex;
@@ -257,44 +281,27 @@
 	}
 	.material-symbols-outlined.big {
 		font-size: 44px;
-		color: rgba(255, 255, 255, 0.6);
+		color: var(--accent);
 	}
 	.empty-title {
 		font-size: 16px;
-		color: rgba(255, 255, 255, 0.85);
+		color: var(--foreground);
 		margin: 4px 0 0;
+		font-weight: 500;
 	}
 	.empty-sub {
 		font-size: 13px;
-		color: rgba(255, 255, 255, 0.4);
+		color: var(--muted-foreground);
 		margin: 0 0 12px;
 	}
 	.primary {
-		background: #fff;
-		color: #000;
+		background: var(--primary);
+		color: var(--primary-foreground);
 		border: none;
-		border-radius: 8px;
-		padding: 8px 20px;
+		border-radius: var(--radius-md, 8px);
+		padding: 8px 22px;
 		font-size: 13px;
 		font-weight: 500;
 		cursor: pointer;
-	}
-
-	@media (max-width: 480px) {
-		.overlay {
-			padding-left: 16px;
-			padding-right: 16px;
-		}
-		.card {
-			min-height: 200px;
-			padding: 20px;
-		}
-		.grades {
-			gap: 6px;
-		}
-		.grade {
-			font-size: 12px;
-			padding: 14px 0;
-		}
 	}
 </style>

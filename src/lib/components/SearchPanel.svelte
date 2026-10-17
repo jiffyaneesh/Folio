@@ -31,16 +31,17 @@
 </script>
 
 {#if search.open}
-	<div class="search">
+	<div class="search" role="search" aria-label="In-document search">
 		<div class="bar">
-			<span class="material-symbols-outlined">search</span>
+			<span class="material-symbols-outlined search-icon">search</span>
 			<input
 				bind:this={inputEl}
 				bind:value={search.query}
 				oninput={onInput}
 				onkeydown={onKey}
-				placeholder={search.building ? 'Indexing…' : 'Search this document'}
+				placeholder={search.building ? 'Indexing pages…' : 'Search in document…'}
 				disabled={search.building}
+				aria-label="Search term"
 			/>
 			{#if search.hits.length}
 				<span class="count">{search.hits.length}</span>
@@ -53,11 +54,11 @@
 		{#if search.query.trim().length >= 2 && !search.building}
 			<div class="results">
 				{#if search.hits.length === 0}
-					<p class="empty">No matches</p>
+					<p class="empty">No matches found</p>
 				{:else}
 					{#each search.hits as hit (hit.page)}
 						<button class="hit" onclick={() => jump(hit.page)}>
-							<span class="pg">{hit.page}</span>
+							<span class="pg">Pg. {hit.page}</span>
 							<span class="snip">{hit.snippet}</span>
 						</button>
 					{/each}
@@ -70,74 +71,78 @@
 <style>
 	.search {
 		position: absolute;
-		top: 12px;
-		right: 12px;
-		width: 320px;
-		max-width: calc(100% - 24px);
-		background: rgba(28, 28, 30, 0.92);
-		backdrop-filter: blur(24px);
-		-webkit-backdrop-filter: blur(24px);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-radius: 14px;
+		top: 14px;
+		right: 14px;
+		width: 340px;
+		max-width: calc(100% - 28px);
+		background: var(--card);
+		color: var(--foreground);
+		border: 1px solid var(--border);
+		border-radius: var(--radius, 12px);
 		z-index: 50;
-		box-shadow: 0 20px 50px -16px rgba(0, 0, 0, 0.8);
+		box-shadow: var(--shadow-elevated);
 		overflow: hidden;
-		animation: drop 0.2s ease;
+		animation: drop 0.18s var(--transition-smooth);
 	}
 	.bar {
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		padding: 9px 10px;
+		padding: 8px 12px;
 	}
-	.bar > .material-symbols-outlined {
+	.search-icon {
 		font-size: 18px;
-		color: rgba(255, 255, 255, 0.4);
+		color: var(--muted-foreground);
 	}
 	.bar input {
 		flex: 1;
 		background: none;
 		border: none;
 		outline: none;
-		color: rgba(255, 255, 255, 0.92);
+		color: var(--foreground);
 		font: inherit;
 		font-size: 13px;
 		min-width: 0;
 	}
 	.bar input::placeholder {
-		color: rgba(255, 255, 255, 0.3);
+		color: var(--muted-foreground);
 	}
 	.count {
 		font-size: 11px;
-		font-family: ui-monospace, monospace;
-		color: rgba(255, 255, 255, 0.4);
+		font-family: ui-monospace, 'JetBrains Mono', monospace;
+		color: var(--accent);
+		background: var(--accent-soft);
+		padding: 1px 6px;
+		border-radius: var(--radius-sm, 6px);
+		font-weight: 500;
 	}
 	.x {
 		background: none;
 		border: none;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--muted-foreground);
 		display: flex;
 		cursor: pointer;
-		padding: 2px;
-		border-radius: 6px;
+		padding: 3px;
+		border-radius: var(--radius-sm, 4px);
+		transition: color 0.15s ease;
 	}
 	.x:hover {
-		color: #fff;
+		color: var(--foreground);
 	}
 	.x .material-symbols-outlined {
 		font-size: 16px;
 	}
 	.results {
-		max-height: 300px;
+		max-height: 280px;
 		overflow-y: auto;
-		border-top: 1px solid rgba(255, 255, 255, 0.06);
+		border-top: 1px solid var(--border);
 		padding: 4px;
 	}
 	.empty {
 		font-size: 12px;
-		color: rgba(255, 255, 255, 0.35);
+		color: var(--muted-foreground);
 		text-align: center;
-		padding: 14px;
+		padding: 16px;
 		margin: 0;
 	}
 	.hit {
@@ -147,26 +152,28 @@
 		text-align: left;
 		background: none;
 		border: none;
-		padding: 8px 9px;
-		border-radius: 8px;
+		padding: 8px 10px;
+		border-radius: var(--radius-sm, 6px);
 		cursor: pointer;
-		color: rgba(255, 255, 255, 0.75);
+		color: var(--foreground);
 		transition: background 0.12s ease;
 	}
 	.hit:hover {
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--muted);
 	}
 	.pg {
 		flex-shrink: 0;
-		font-family: ui-monospace, monospace;
+		font-family: ui-monospace, 'JetBrains Mono', monospace;
 		font-size: 11px;
-		color: rgba(255, 255, 255, 0.4);
-		min-width: 20px;
+		color: var(--primary);
+		min-width: 38px;
 		padding-top: 1px;
+		font-weight: 500;
 	}
 	.snip {
 		font-size: 12px;
-		line-height: 1.4;
+		line-height: 1.45;
+		color: var(--foreground);
 		overflow: hidden;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
@@ -178,6 +185,10 @@
 			opacity: 0;
 			transform: translateY(-8px);
 		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	@media (pointer: coarse) {
@@ -185,8 +196,8 @@
 			padding: 12px;
 		}
 		.x {
-			min-width: 40px;
-			min-height: 40px;
+			min-width: 36px;
+			min-height: 36px;
 			align-items: center;
 			justify-content: center;
 		}

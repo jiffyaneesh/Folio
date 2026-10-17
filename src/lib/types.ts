@@ -1,5 +1,5 @@
 // Compile-time string-literal unions — erased at build, no runtime enum wrappers.
-export type Tab = 'notes' | 'highlights' | 'outline';
+export type Tab = 'notes' | 'highlights' | 'bookmarks' | 'outline';
 
 export interface DocumentRecord {
 	id: string; // content hash
@@ -10,6 +10,17 @@ export interface DocumentRecord {
 	sessionTime: number; // accumulated seconds
 	addedAt: number; // epoch ms
 	lastOpenedAt: number;
+	zoom?: number;
+	activeTab?: Tab;
+	defaultAspect?: number;
+}
+
+export interface BookmarkRecord {
+	id: string;
+	docId: string;
+	page: number;
+	title?: string;
+	createdAt: number;
 }
 
 export interface NoteRecord {

@@ -6,6 +6,7 @@ import type {
 	NoteRecord,
 	HighlightRecord,
 	FlashcardRecord,
+	BookmarkRecord,
 	OutlineItem,
 	HighlightRect,
 	Tab
@@ -22,10 +23,40 @@ class AppState {
 	activeTab = $state<Tab>('notes');
 	sessionStart = $state(0);
 	loading = $state(false);
+	zen = $state(false);
+	theme = $state<'light' | 'dark'>('dark');
 
 	get progress(): number {
 		if (!this.totalPages) return 0;
 		return Math.round((this.currentPage / this.totalPages) * 100);
+	}
+
+	toggleTheme() {
+		this.theme = this.theme === 'dark' ? 'light' : 'dark';
+		try {
+			localStorage.setItem('folio-theme', this.theme);
+			if (this.theme === 'dark') {
+				document.documentElement.classList.add('dark');
+			} else {
+				document.documentElement.classList.remove('dark');
+			}
+		} catch {}
+	}
+
+	initTheme() {
+		try {
+			const saved = localStorage.getItem('folio-theme') as 'light' | 'dark' | null;
+			if (saved === 'light' || saved === 'dark') {
+				this.theme = saved;
+			} else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+				this.theme = 'light';
+			}
+			if (this.theme === 'dark') {
+				document.documentElement.classList.add('dark');
+			} else {
+				document.documentElement.classList.remove('dark');
+			}
+		} catch {}
 	}
 
 	reset() {
@@ -36,6 +67,7 @@ class AppState {
 		this.zoom = 1;
 		this.outline = [];
 		this.sessionStart = 0;
+		this.zen = false;
 	}
 }
 
@@ -55,6 +87,8 @@ export async function openFile(file: File | Blob, name: string) {
 			await db.documents.put(existing);
 			app.doc = existing;
 			app.currentPage = existing.lastPage || 1;
+			app.zoom = existing.zoom || 1;
+			if (existing.activeTab) app.activeTab = existing.activeTab;
 		} else {
 			const rec: DocumentRecord = {
 				id,
@@ -64,11 +98,14 @@ export async function openFile(file: File | Blob, name: string) {
 				totalPages: 0,
 				sessionTime: 0,
 				addedAt: now,
-				lastOpenedAt: now
+				lastOpenedAt: now,
+				zoom: 1,
+				activeTab: 'notes'
 			};
 			await db.documents.put(rec);
 			app.doc = rec;
 			app.currentPage = 1;
+			app.zoom = 1;
 		}
 
 		// Hand PDF.js its own ArrayBuffer copy — it transfers/detaches the buffer.
@@ -85,6 +122,8 @@ export async function persistProgress() {
 	app.doc.lastPage = app.currentPage;
 	app.doc.totalPages = app.totalPages;
 	app.doc.sessionTime += elapsed;
+	app.doc.zoom = app.zoom;
+	app.doc.activeTab = app.activeTab;
 	app.sessionStart = Date.now();
 	await db.documents.put($state.snapshot(app.doc));
 }
@@ -99,6 +138,12 @@ export function notesQuery(docId: string): Observable<NoteRecord[]> {
 export function highlightsQuery(docId: string): Observable<HighlightRecord[]> {
 	return liveQuery(() =>
 		db.highlights.where('docId').equals(docId).reverse().sortBy('createdAt')
+	);
+}
+
+export function bookmarksQuery(docId: string): Observable<BookmarkRecord[]> {
+	return liveQuery(() =>
+		db.bookmarks.where('docId').equals(docId).sortBy('page')
 	);
 }
 
@@ -140,7 +185,7 @@ export async function addHighlight(
 	page: number,
 	text: string,
 	rects: HighlightRect[],
-	color = 'rgba(255,255,255,0.22)'
+	color = 'rgba(245, 158, 11, 0.35)'
 ) {
 	const hl: HighlightRecord = {
 		id: uid(),
@@ -160,6 +205,35 @@ export async function deleteHighlight(id: string) {
 		await db.highlights.delete(id);
 		await db.flashcards.where('highlightId').equals(id).delete();
 	});
+}
+
+export async function addBookmark(docId: string, page: number, title?: string) {
+	const existing = await db.bookmarks.where('docId').equals(docId).filter((b) => b.page === page).first();
+	if (existing) return existing;
+	const bm: BookmarkRecord = {
+		id: uid(),
+		docId,
+		page,
+		title: title || `Page ${page}`,
+		createdAt: Date.now()
+	};
+	await db.bookmarks.add(bm);
+	return bm;
+}
+
+export async function deleteBookmark(id: string) {
+	await db.bookmarks.delete(id);
+}
+
+export async function toggleBookmark(docId: string, page: number, title?: string) {
+	const existing = await db.bookmarks.where('docId').equals(docId).filter((b) => b.page === page).first();
+	if (existing) {
+		await db.bookmarks.delete(existing.id);
+		return false;
+	} else {
+		await addBookmark(docId, page, title);
+		return true;
+	}
 }
 
 async function upsertFlashcard(hl: HighlightRecord, back: string) {

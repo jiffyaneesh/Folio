@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { recentDocsQuery, openFile } from '../state.svelte';
+	import { recentDocsQuery, openFile, app } from '../state.svelte';
 	import { db } from '../db';
 	import { relTime } from '../time';
 	import type { DocumentRecord } from '../types';
@@ -58,28 +58,42 @@
 	ondragleave={() => (dragging = false)}
 	ondrop={onDrop}
 	role="region"
-	aria-label="Open a document"
+	aria-label="Document Library"
 >
 	<div class="orbs" aria-hidden="true">
 		<span class="orb orb-a"></span>
 		<span class="orb orb-b"></span>
 		<span class="orb orb-c"></span>
 	</div>
-	<a
-		class="gh-link"
-		href="https://github.com/aneeshsharma72067"
-		target="_blank"
-		rel="noopener noreferrer"
-		aria-label="GitHub profile"
-		title="GitHub profile"
-	>
-		<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-			<path
-				fill="currentColor"
-				d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.16-.02-2.1-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 2.9-.39c.98 0 1.97.13 2.9.39 2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5z"
-			/>
-		</svg>
-	</a>
+
+	<div class="top-nav">
+		<button
+			class="nav-btn"
+			onclick={() => app.toggleTheme()}
+			aria-label="Toggle theme"
+			title={app.theme === 'dark' ? 'Switch to warm light theme' : 'Switch to dark theme'}
+		>
+			<span class="material-symbols-outlined">
+				{app.theme === 'dark' ? 'light_mode' : 'dark_mode'}
+			</span>
+		</button>
+		<a
+			class="nav-btn"
+			href="https://github.com/aneeshsharma72067"
+			target="_blank"
+			rel="noopener noreferrer"
+			aria-label="GitHub profile"
+			title="GitHub profile"
+		>
+			<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+				<path
+					fill="currentColor"
+					d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.16-.02-2.1-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 2.9-.39c.98 0 1.97.13 2.9.39 2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5z"
+				/>
+			</svg>
+		</a>
+	</div>
+
 	<div class="hero">
 		<div class="logo">
 			<span class="material-symbols-outlined">menu_book</span>
@@ -107,21 +121,28 @@
 				<span class="material-symbols-outlined">ink_highlighter</span>
 				<div>
 					<strong>Highlight & annotate</strong>
-					<span>Mark passages and attach notes as you read.</span>
+					<span>Mark passages in multiple colors and attach notes as you read.</span>
+				</div>
+			</li>
+			<li>
+				<span class="material-symbols-outlined">bookmark_border</span>
+				<div>
+					<strong>Smart bookmarking & state</strong>
+					<span>Never lose your reading position; jump back exactly where you stopped.</span>
 				</div>
 			</li>
 			<li>
 				<span class="material-symbols-outlined">search</span>
 				<div>
-					<strong>Full-text search</strong>
-					<span>Find any line across every document instantly.</span>
+					<strong>Instant full-text search</strong>
+					<span>Find any phrase or equation across all pages within milliseconds.</span>
 				</div>
 			</li>
 			<li>
 				<span class="material-symbols-outlined">cycle</span>
 				<div>
-					<strong>Spaced repetition</strong>
-					<span>Turn highlights into flashcards that resurface on time.</span>
+					<strong>Active recall (SM-2)</strong>
+					<span>Turn highlighted citations into spaced-repetition cards automatically.</span>
 				</div>
 			</li>
 		</ul>
@@ -129,7 +150,7 @@
 
 	{#if docs.length}
 		<div class="recents">
-			<h2>Recent</h2>
+			<h2>Recent Documents</h2>
 			<div class="grid">
 				{#each docs as d (d.id)}
 					<div
@@ -141,14 +162,14 @@
 					>
 						<div class="doc-thumb">
 							<span class="material-symbols-outlined">description</span>
-							<button class="del" onclick={(e) => remove(e, d)} aria-label="Remove">
+							<button class="del" onclick={(e) => remove(e, d)} aria-label={`Delete ${d.name}`}>
 								<span class="material-symbols-outlined">delete</span>
 							</button>
 						</div>
 						<div class="doc-meta">
 							<span class="doc-name">{d.name}</span>
 							<span class="doc-sub">
-								{d.totalPages ? `${d.lastPage}/${d.totalPages} · ` : ''}{relTime(d.lastOpenedAt)}
+								{d.totalPages ? `Page ${d.lastPage}/${d.totalPages} · ` : ''}{relTime(d.lastOpenedAt)}
 							</span>
 						</div>
 					</div>
@@ -161,7 +182,7 @@
 		<div class="drop-overlay">
 			<div class="drop-card">
 				<span class="material-symbols-outlined">file_download</span>
-				Drop to open
+				Drop PDF to open
 			</div>
 		</div>
 	{/if}
@@ -169,7 +190,7 @@
 	<footer class="foot">
 		<span>100% local</span>
 		<span class="dot">·</span>
-		<span>no account</span>
+		<span>no tracking</span>
 		<span class="dot">·</span>
 		<a href="https://github.com/aneeshsharma72067/Folio" target="_blank" rel="noopener noreferrer">
 			open source
@@ -187,31 +208,40 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		padding: calc(8vh + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right))
-			calc(60px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));
-		background: radial-gradient(120% 90% at 50% -10%, #18181b 0%, #0c0c0d 55%, #08080a 100%);
+		padding: calc(6vh + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right))
+			calc(48px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));
+		background: var(--app-bg);
+		color: var(--foreground);
 		position: relative;
+		transition: background-color 0.2s var(--transition-smooth);
 	}
-	.gh-link {
+	.top-nav {
 		position: absolute;
 		top: calc(16px + env(safe-area-inset-top));
 		right: calc(16px + env(safe-area-inset-right));
-		width: 38px;
-		height: 38px;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		z-index: 10;
+	}
+	.nav-btn {
+		width: 36px;
+		height: 36px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		border-radius: 10px;
-		color: rgba(255, 255, 255, 0.5);
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
-		z-index: 10;
+		border-radius: var(--radius-md, 8px);
+		color: var(--muted-foreground);
+		background: var(--card);
+		border: 1px solid var(--border);
+		box-shadow: var(--shadow-subtle);
+		cursor: pointer;
+		transition: all 0.15s ease;
 	}
-	.gh-link:hover {
-		color: #fff;
-		background: rgba(255, 255, 255, 0.1);
-		transform: translateY(-2px);
+	.nav-btn:hover {
+		color: var(--foreground);
+		border-color: var(--accent);
+		transform: translateY(-1px);
 	}
 	.hero {
 		display: flex;
@@ -222,8 +252,6 @@
 		position: relative;
 		z-index: 1;
 	}
-
-	/* Ambient drifting glow behind the hero — atmosphere only, no layout impact. */
 	.orbs {
 		position: absolute;
 		inset: 0;
@@ -234,24 +262,24 @@
 	.orb {
 		position: absolute;
 		border-radius: 50%;
-		filter: blur(70px);
-		opacity: 0.4;
+		filter: blur(80px);
+		opacity: 0.28;
 		will-change: transform;
 	}
 	.orb-a {
 		top: 6%;
 		left: 18%;
-		width: 320px;
-		height: 320px;
-		background: radial-gradient(circle, #2d4f8a 0%, transparent 70%);
+		width: 340px;
+		height: 340px;
+		background: radial-gradient(circle, #2d5ca8 0%, transparent 70%);
 		animation: drift-a 22s ease-in-out infinite;
 	}
 	.orb-b {
-		top: 18%;
+		top: 20%;
 		right: 12%;
-		width: 280px;
-		height: 280px;
-		background: radial-gradient(circle, #6a3d8a 0%, transparent 70%);
+		width: 300px;
+		height: 300px;
+		background: radial-gradient(circle, #7e3fa8 0%, transparent 70%);
 		animation: drift-b 28s ease-in-out infinite;
 	}
 	.orb-c {
@@ -259,7 +287,7 @@
 		left: 40%;
 		width: 360px;
 		height: 360px;
-		background: radial-gradient(circle, #1f6e6a 0%, transparent 70%);
+		background: radial-gradient(circle, #1f7b76 0%, transparent 70%);
 		animation: drift-c 32s ease-in-out infinite;
 	}
 	@keyframes drift-a {
@@ -282,16 +310,19 @@
 			animation: none;
 		}
 	}
-
 	.features {
 		list-style: none;
-		margin: 48px 0 0;
-		padding: 0;
+		margin: 40px 0 0;
+		padding: 20px 24px;
 		width: 100%;
-		max-width: 360px;
+		max-width: 440px;
 		display: flex;
 		flex-direction: column;
-		gap: 18px;
+		gap: 16px;
+		background: var(--card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-xl, 16px);
+		box-shadow: var(--shadow-soft);
 		position: relative;
 		z-index: 1;
 	}
@@ -303,7 +334,7 @@
 	}
 	.features li .material-symbols-outlined {
 		font-size: 22px;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--accent);
 		flex-shrink: 0;
 		margin-top: 1px;
 	}
@@ -313,16 +344,15 @@
 		gap: 2px;
 	}
 	.features strong {
-		font-size: 14px;
+		font-size: 13.5px;
 		font-weight: 500;
-		color: rgba(255, 255, 255, 0.82);
+		color: var(--foreground);
 	}
 	.features li div span {
-		font-size: 12.5px;
-		color: rgba(255, 255, 255, 0.4);
+		font-size: 12px;
+		color: var(--muted-foreground);
 		line-height: 1.4;
 	}
-
 	.foot {
 		margin-top: auto;
 		padding-top: 48px;
@@ -330,92 +360,94 @@
 		align-items: center;
 		gap: 8px;
 		font-size: 12px;
-		color: rgba(255, 255, 255, 0.3);
+		color: var(--muted-foreground);
 		position: relative;
 		z-index: 1;
 	}
 	.foot a {
-		color: rgba(255, 255, 255, 0.45);
+		color: var(--foreground);
 		text-decoration: none;
 	}
 	.foot a:hover {
-		color: rgba(255, 255, 255, 0.75);
+		color: var(--accent);
 	}
 	.foot .dot {
 		opacity: 0.5;
 	}
 	.logo {
-		width: 64px;
-		height: 64px;
-		border-radius: 18px;
-		background: linear-gradient(160deg, #232327, #161618);
-		border: 1px solid rgba(255, 255, 255, 0.08);
+		width: 60px;
+		height: 60px;
+		border-radius: var(--radius-xl, 16px);
+		background: var(--card);
+		border: 1px solid var(--border);
+		box-shadow: var(--shadow-soft);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		margin-bottom: 20px;
-		box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.7);
+		margin-bottom: 18px;
 	}
 	.logo .material-symbols-outlined {
-		font-size: 32px;
-		color: rgba(255, 255, 255, 0.85);
+		font-size: 30px;
+		color: var(--primary);
 	}
 	h1 {
-		font-size: 34px;
+		font-size: 32px;
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: -0.025em;
 		margin: 0;
-		color: #fff;
+		color: var(--foreground);
 	}
 	.tag {
-		font-size: 15px;
-		color: rgba(255, 255, 255, 0.45);
-		margin: 8px 0 28px;
+		font-size: 14.5px;
+		color: var(--muted-foreground);
+		margin: 8px 0 24px;
 	}
 	.open-btn {
 		display: inline-flex;
 		align-items: center;
 		gap: 8px;
-		background: #fff;
-		color: #000;
+		background: var(--primary);
+		color: var(--primary-foreground);
 		border: none;
-		border-radius: 12px;
-		padding: 12px 24px;
+		border-radius: var(--radius-md, 10px);
+		padding: 11px 24px;
 		font: inherit;
-		font-size: 15px;
+		font-size: 14px;
 		font-weight: 500;
 		cursor: pointer;
-		transition: transform 0.15s ease, box-shadow 0.15s ease;
-		box-shadow: 0 8px 24px -8px rgba(255, 255, 255, 0.3);
+		transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+		box-shadow: var(--shadow-soft);
 	}
 	.open-btn:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 12px 32px -8px rgba(255, 255, 255, 0.4);
+		transform: translateY(-1.5px);
+		box-shadow: var(--shadow-elevated);
+		opacity: 0.95;
 	}
 	.open-btn .material-symbols-outlined {
 		font-size: 20px;
 	}
 	.drop-hint {
 		font-size: 12px;
-		color: rgba(255, 255, 255, 0.3);
-		margin-top: 14px;
+		color: var(--muted-foreground);
+		margin-top: 12px;
 	}
 	.recents {
 		width: 100%;
-		max-width: 820px;
-		margin-top: 56px;
+		max-width: 840px;
+		margin-top: 48px;
+		z-index: 1;
 	}
 	.recents h2 {
 		font-size: 12px;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
-		color: rgba(255, 255, 255, 0.35);
+		color: var(--muted-foreground);
 		margin: 0 0 16px;
 		font-weight: 500;
 	}
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(154px, 1fr));
 		gap: 16px;
 	}
 	.doc {
@@ -431,21 +463,24 @@
 	.doc-thumb {
 		position: relative;
 		aspect-ratio: 3 / 4;
-		border-radius: 10px;
-		background: linear-gradient(160deg, #1c1c1f, #141416);
-		border: 1px solid rgba(255, 255, 255, 0.07);
+		border-radius: var(--radius, 10px);
+		background: var(--card);
+		border: 1px solid var(--border);
+		box-shadow: var(--shadow-subtle);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition: transform 0.15s ease, border-color 0.15s ease;
+		transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 	}
 	.doc:hover .doc-thumb {
-		transform: translateY(-3px);
-		border-color: rgba(255, 255, 255, 0.16);
+		transform: translateY(-2px);
+		border-color: var(--accent);
+		box-shadow: var(--shadow-soft);
 	}
 	.doc-thumb .material-symbols-outlined {
-		font-size: 36px;
-		color: rgba(255, 255, 255, 0.25);
+		font-size: 38px;
+		color: var(--muted-foreground);
+		opacity: 0.5;
 	}
 	.del {
 		position: absolute;
@@ -453,24 +488,27 @@
 		right: 6px;
 		width: 26px;
 		height: 26px;
-		border-radius: 7px;
-		background: rgba(0, 0, 0, 0.5);
-		border: none;
-		color: rgba(255, 255, 255, 0.6);
+		border-radius: var(--radius-sm, 6px);
+		background: var(--card);
+		border: 1px solid var(--border);
+		color: var(--muted-foreground);
 		display: none;
 		align-items: center;
 		justify-content: center;
 		cursor: pointer;
+		transition: all 0.15s ease;
 	}
 	.doc:hover .del {
 		display: flex;
 	}
 	.del:hover {
-		background: rgba(220, 60, 60, 0.8);
-		color: #fff;
+		background: var(--destructive);
+		color: #ffffff;
+		border-color: var(--destructive);
 	}
 	.del .material-symbols-outlined {
 		font-size: 15px;
+		opacity: 1;
 	}
 	.doc-meta {
 		display: flex;
@@ -480,19 +518,21 @@
 	}
 	.doc-name {
 		font-size: 13px;
-		color: rgba(255, 255, 255, 0.8);
+		color: var(--foreground);
+		font-weight: 500;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 	.doc-sub {
 		font-size: 11px;
-		color: rgba(255, 255, 255, 0.35);
+		color: var(--muted-foreground);
+		font-family: ui-monospace, 'JetBrains Mono', monospace;
 	}
 	.drop-overlay {
 		position: fixed;
 		inset: 0;
-		background: rgba(0, 0, 0, 0.7);
+		background: rgba(0, 0, 0, 0.6);
 		backdrop-filter: blur(6px);
 		display: flex;
 		align-items: center;
@@ -505,43 +545,21 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 12px;
-		padding: 40px 64px;
-		border: 2px dashed rgba(255, 255, 255, 0.3);
-		border-radius: 20px;
+		padding: 36px 60px;
+		border: 2px dashed var(--accent);
+		border-radius: var(--radius-xl, 18px);
 		font-size: 16px;
-		color: rgba(255, 255, 255, 0.85);
+		background: var(--card);
+		color: var(--foreground);
+		box-shadow: var(--shadow-elevated);
 	}
 	.drop-card .material-symbols-outlined {
 		font-size: 40px;
+		color: var(--accent);
 	}
-
-	/* Touch: no hover to reveal the remove button — show it always. */
 	@media (hover: none) {
 		.del {
 			display: flex;
-		}
-	}
-
-	@media (max-width: 560px) {
-		.grid {
-			grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-			gap: 12px;
-		}
-		.recents {
-			margin-top: 40px;
-		}
-	}
-	@media (max-width: 420px) {
-		h1 {
-			font-size: 28px;
-		}
-		.tag {
-			font-size: 14px;
-		}
-	}
-	@media (max-height: 560px) {
-		.library {
-			padding-top: calc(4vh + env(safe-area-inset-top));
 		}
 	}
 </style>

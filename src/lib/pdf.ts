@@ -18,6 +18,18 @@ export async function loadDocument(data: Uint8Array): Promise<PDFDocumentProxy> 
 	return task.promise;
 }
 
+export async function getDocumentBaseAspect(doc: PDFDocumentProxy): Promise<number> {
+	try {
+		const firstPage = await doc.getPage(1);
+		const vp = firstPage.getViewport({ scale: 1 });
+		const aspect = vp.height / vp.width;
+		firstPage.cleanup();
+		return aspect > 0 ? aspect : 1.4142;
+	} catch {
+		return 1.4142;
+	}
+}
+
 export async function extractOutline(doc: PDFDocumentProxy): Promise<OutlineItem[]> {
 	const raw = await doc.getOutline();
 	if (!raw || raw.length === 0) return [];

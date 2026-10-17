@@ -12,81 +12,130 @@
 		width: number; // CSS px target width of the page column
 		visible: boolean;
 		highlights: HighlightRecord[];
+		initialAspect?: number;
 		onsize?: (pageNumber: number, height: number) => void;
 	}
 
-	let { doc, pageNumber, scale, width, visible, highlights, onsize }: Props = $props();
+	let { doc, pageNumber, scale, width, visible, highlights, initialAspect = 1.4142, onsize }: Props = $props();
 
 	let canvas = $state<HTMLCanvasElement | null>(null);
 	let textEl = $state<HTMLDivElement | null>(null);
 	let page: PDFPageProxy | null = null;
-	let rendered = false;
+	let rendered = $state(false);
+	let rendering = false;
 	let renderToken = 0;
-	let aspect = $state(1.4142); // A4 fallback until measured
+	let currentRenderTask: { cancel: () => void; promise: Promise<unknown> } | null = null;
+	function getAspect() {
+		return initialAspect;
+	}
+	let aspect = $state(getAspect());
 	let cssHeight = $derived(width * aspect);
 
 	const pageHighlights = $derived(highlights.filter((h) => h.page === pageNumber));
 
 	async function render() {
-		if (!visible || rendered || !canvas) return;
+		if (!visible || rendered || rendering || !canvas) return;
+		rendering = true;
 		const token = ++renderToken;
-		if (!page) page = await doc.getPage(pageNumber);
-		if (token !== renderToken) return;
 
-		const base = page.getViewport({ scale: 1 });
-		aspect = base.height / base.width;
-		onsize?.(pageNumber, width * aspect);
+		try {
+			if (!page) {
+				page = await doc.getPage(pageNumber);
+			}
+			if (token !== renderToken || !visible || !canvas) {
+				rendering = false;
+				return;
+			}
 
-		const dpr = Math.min(window.devicePixelRatio || 1, 2);
-		const cssScale = (width / base.width) * scale;
-		const viewport = page.getViewport({ scale: cssScale * dpr });
+			const base = page.getViewport({ scale: 1 });
+			const measuredAspect = base.height / base.width;
+			if (measuredAspect > 0 && Math.abs(measuredAspect - aspect) > 0.005) {
+				aspect = measuredAspect;
+				onsize?.(pageNumber, width * aspect);
+			}
 
-		canvas.width = viewport.width;
-		canvas.height = viewport.height;
-		canvas.style.width = '100%';
-		canvas.style.height = '100%';
+			const dpr = Math.min(window.devicePixelRatio || 1, 2);
+			const cssScale = (width / base.width) * scale;
+			const viewport = page.getViewport({ scale: cssScale * dpr });
 
-		const ctx = canvas.getContext('2d', { alpha: false });
-		if (!ctx) return;
-		await page.render({ canvas, canvasContext: ctx, viewport, background: '#ffffff' }).promise;
-		if (token !== renderToken) return;
+			canvas.width = viewport.width;
+			canvas.height = viewport.height;
+			canvas.style.width = '100%';
+			canvas.style.height = '100%';
 
-		// Text layer for selection — scaled to CSS pixels, not device pixels.
-		if (textEl) {
-			textEl.replaceChildren();
-			const tvp = page.getViewport({ scale: cssScale });
-			const tl = new TextLayer({
-				textContentSource: await page.getTextContent(),
-				container: textEl,
-				viewport: tvp
-			});
-			await tl.render();
+			const ctx = canvas.getContext('2d', { alpha: false });
+			if (!ctx) {
+				rendering = false;
+				return;
+			}
+
+			// Render canvas bitmap
+			currentRenderTask = page.render({ canvas, canvasContext: ctx, viewport, background: '#ffffff' });
+			await currentRenderTask.promise;
+			currentRenderTask = null;
+
+			if (token !== renderToken || !visible) {
+				rendering = false;
+				return;
+			}
+
+			// Render selectable text layer
+			if (textEl) {
+				textEl.replaceChildren();
+				const tvp = page.getViewport({ scale: cssScale });
+				const textContent = await page.getTextContent();
+				if (token === renderToken && textEl) {
+					const tl = new TextLayer({
+						textContentSource: textContent,
+						container: textEl,
+						viewport: tvp
+					});
+					await tl.render();
+				}
+			}
+
+			rendered = true;
+		} catch (err: unknown) {
+			const e = err as { name?: string };
+			if (e?.name !== 'RenderingCancelledException') {
+				console.warn(`[Folio] Page ${pageNumber} render notice:`, err);
+			}
+		} finally {
+			rendering = false;
 		}
-		rendered = true;
 	}
 
 	function teardown() {
 		renderToken++;
+		if (currentRenderTask) {
+			try {
+				currentRenderTask.cancel();
+			} catch {}
+			currentRenderTask = null;
+		}
 		releaseCanvas(canvas);
 		textEl?.replaceChildren();
-		page?.cleanup();
+		if (page) {
+			page.cleanup();
+		}
 		rendered = false;
+		rendering = false;
 	}
 
-	// Render when visible; release when scrolled out of buffer (memory lifecycle).
+	// Trigger render when visible and canvas is mounted; release when out of viewport
 	$effect(() => {
-		if (visible) {
+		if (visible && canvas && !rendered && !rendering) {
 			tick().then(render);
-		} else if (rendered) {
+		} else if (!visible && (rendered || rendering)) {
 			teardown();
 		}
 	});
 
-	// Re-render on zoom change while visible.
+	// Re-render when zoom/width changes while visible
 	$effect(() => {
 		scale;
 		width;
-		if (visible && rendered) {
+		if (visible && canvas && rendered && !rendering) {
 			rendered = false;
 			tick().then(render);
 		}
@@ -119,7 +168,7 @@
 		</div>
 	{:else}
 		<div class="pdf-placeholder">
-			<span class="ph-num">{pageNumber}</span>
+			<span class="ph-num">Page {pageNumber}</span>
 		</div>
 	{/if}
 </div>
@@ -127,17 +176,20 @@
 <style>
 	.pdf-page {
 		position: relative;
-		margin: 0 auto 20px;
-		border-radius: 6px;
+		margin: 0 auto 24px;
+		border-radius: var(--radius, 10px);
 		overflow: hidden;
-		background: #fff;
-		box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+		background: #ffffff;
+		box-shadow: var(--shadow-soft, 0 4px 16px -4px rgba(15, 23, 42, 0.12));
+		border: 1px solid var(--border);
 		contain: layout paint;
+		transition: box-shadow 0.2s ease;
 	}
 	.pdf-canvas {
 		display: block;
 		width: 100%;
 		height: 100%;
+		background: #ffffff;
 	}
 	.pdf-placeholder {
 		width: 100%;
@@ -145,13 +197,15 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: #14141600;
-		background-color: #161618;
+		background-color: var(--card);
+		border-radius: var(--radius, 10px);
 	}
 	.ph-num {
 		font-size: 13px;
-		color: rgba(255, 255, 255, 0.18);
-		font-family: ui-monospace, monospace;
+		color: var(--muted-foreground);
+		font-family: ui-monospace, 'JetBrains Mono', monospace;
+		font-weight: 500;
+		letter-spacing: 0.05em;
 	}
 	.text-layer {
 		position: absolute;
@@ -170,7 +224,7 @@
 		color: transparent;
 	}
 	:global(.text-layer ::selection) {
-		background: rgba(120, 170, 255, 0.4);
+		background: rgba(59, 130, 246, 0.35);
 	}
 	:global(.text-layer br::selection) {
 		background: transparent;
@@ -183,7 +237,10 @@
 	}
 	.hl-rect {
 		position: absolute;
-		border-radius: 2px;
+		border-radius: 3px;
+		mix-blend-mode: multiply;
+	}
+	:global(.dark) .hl-rect {
 		mix-blend-mode: normal;
 	}
 </style>

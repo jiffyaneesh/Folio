@@ -3,7 +3,8 @@ import type {
 	DocumentRecord,
 	NoteRecord,
 	HighlightRecord,
-	FlashcardRecord
+	FlashcardRecord,
+	BookmarkRecord
 } from './types';
 
 class FolioDB extends Dexie {
@@ -11,6 +12,7 @@ class FolioDB extends Dexie {
 	notes!: Table<NoteRecord, string>;
 	highlights!: Table<HighlightRecord, string>;
 	flashcards!: Table<FlashcardRecord, string>;
+	bookmarks!: Table<BookmarkRecord, string>;
 
 	constructor() {
 		super('folio');
@@ -19,6 +21,9 @@ class FolioDB extends Dexie {
 			notes: 'id, docId, page, createdAt',
 			highlights: 'id, docId, page, createdAt',
 			flashcards: 'id, docId, highlightId, nextReview'
+		});
+		this.version(2).stores({
+			bookmarks: 'id, docId, page, createdAt'
 		});
 	}
 }
