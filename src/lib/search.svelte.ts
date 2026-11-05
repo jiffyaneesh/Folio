@@ -1,15 +1,13 @@
-import MiniSearch from 'minisearch';
 import type { PDFDocumentProxy } from './pdf';
-
-// One indexed doc = one page. Lazy-built on first search, kept per-PDF in memory.
-interface PageDoc {
-	id: number; // page number
-	text: string;
-}
 
 export interface SearchHit {
 	page: number;
 	snippet: string;
+}
+
+interface PageDoc {
+	id: number;
+	text: string;
 }
 
 class SearchState {
@@ -18,9 +16,44 @@ class SearchState {
 	hits = $state<SearchHit[]>([]);
 	building = $state(false);
 	ready = $state(false);
+	progress = $state(0); // 0 to 100%
 
-	#index: MiniSearch<PageDoc> | null = null;
-	#pageText = new Map<number, string>();
+	#worker: Worker | null = null;
+	#queryId = 0;
+	#buildToken = 0;
+
+	constructor() {
+		this.#initWorker();
+	}
+
+	#initWorker() {
+		if (typeof window === 'undefined' || typeof Worker === 'undefined') return;
+		try {
+			this.#worker = new Worker(new URL('./search.worker.ts', import.meta.url), {
+				type: 'module'
+			});
+
+			this.#worker.onmessage = (e: MessageEvent) => {
+				const data = e.data;
+				if (!data) return;
+
+				if (data.type === 'READY') {
+					this.ready = true;
+					this.building = false;
+					this.progress = 100;
+					if (this.query.trim().length >= 2) {
+						this.run();
+					}
+				} else if (data.type === 'SEARCH_RESULTS') {
+					if (data.queryId === this.#queryId) {
+						this.hits = data.hits || [];
+					}
+				}
+			};
+		} catch (err) {
+			console.warn('[Folio] Could not initialize search worker:', err);
+		}
+	}
 
 	reset() {
 		this.open = false;
@@ -28,60 +61,73 @@ class SearchState {
 		this.hits = [];
 		this.building = false;
 		this.ready = false;
-		this.#index = null;
-		this.#pageText.clear();
+		this.progress = 0;
+		this.#buildToken++;
+		if (this.#worker) {
+			this.#worker.postMessage({ type: 'INIT' });
+		}
 	}
 
-	// Extract every page's text once, feed MiniSearch. Cheap terms, no positions.
 	async build(doc: PDFDocumentProxy) {
 		if (this.ready || this.building) return;
 		this.building = true;
-		const idx = new MiniSearch<PageDoc>({
-			fields: ['text'],
-			storeFields: [],
-			searchOptions: { prefix: true, fuzzy: 0.15, combineWith: 'AND' }
-		});
-		const docs: PageDoc[] = [];
-		for (let p = 1; p <= doc.numPages; p++) {
-			const page = await doc.getPage(p);
-			const content = await page.getTextContent();
-			const text = content.items
-				.map((it) => ('str' in it ? it.str : ''))
-				.join(' ')
-				.replace(/\s+/g, ' ')
-				.trim();
-			this.#pageText.set(p, text);
-			docs.push({ id: p, text });
-			page.cleanup();
+		this.progress = 0;
+		const token = ++this.#buildToken;
+
+		if (!this.#worker) {
+			this.#initWorker();
 		}
-		idx.addAll(docs);
-		this.#index = idx;
-		this.ready = true;
-		this.building = false;
+
+		this.#worker?.postMessage({ type: 'INIT' });
+
+		const totalPages = doc.numPages;
+		const BATCH_SIZE = 8;
+		let batch: PageDoc[] = [];
+
+		for (let p = 1; p <= totalPages; p++) {
+			if (token !== this.#buildToken) return;
+
+			try {
+				const page = await doc.getPage(p);
+				const content = await page.getTextContent();
+				const text = content.items
+					.map((it) => ('str' in it ? it.str : ''))
+					.join(' ')
+					.replace(/\s+/g, ' ')
+					.trim();
+				batch.push({ id: p, text });
+				page.cleanup();
+			} catch (err) {
+				console.warn(`[Folio] Could not extract text for page ${p}:`, err);
+			}
+
+			// Send in small batches and yield to event loop so UI never stutters
+			if (batch.length >= BATCH_SIZE || p === totalPages) {
+				this.#worker?.postMessage({ type: 'ADD_PAGES', pages: batch });
+				batch = [];
+				this.progress = Math.round((p / totalPages) * 100);
+				// Micro-pause to yield main thread to user interactions/animations
+				await new Promise((resolve) => setTimeout(resolve, 0));
+			}
+		}
+
+		if (token === this.#buildToken) {
+			this.#worker?.postMessage({ type: 'FINISH_BUILD' });
+		}
 	}
 
 	run() {
 		const q = this.query.trim();
-		if (!this.#index || q.length < 2) {
+		if (q.length < 2) {
 			this.hits = [];
 			return;
 		}
-		const results = this.#index.search(q).slice(0, 50);
-		this.hits = results.map((r) => ({
-			page: r.id as number,
-			snippet: snippet(this.#pageText.get(r.id as number) ?? '', q)
-		}));
-	}
-}
 
-// First match window, +/-40 chars around the query term.
-function snippet(text: string, query: string): string {
-	const term = query.split(/\s+/)[0].toLowerCase();
-	const i = text.toLowerCase().indexOf(term);
-	if (i < 0) return text.slice(0, 90) + (text.length > 90 ? '…' : '');
-	const start = Math.max(0, i - 40);
-	const end = Math.min(text.length, i + term.length + 50);
-	return (start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
+		const queryId = ++this.#queryId;
+		if (this.#worker && this.ready) {
+			this.#worker.postMessage({ type: 'SEARCH', query: q, queryId });
+		}
+	}
 }
 
 export const search = new SearchState();
