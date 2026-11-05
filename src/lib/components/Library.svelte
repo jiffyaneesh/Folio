@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { recentDocsQuery, openFile, app } from '../state.svelte';
+	import { recentDocsQuery, openFile, openDocument, app } from '../state.svelte';
 	import { db } from '../db';
 	import { relTime } from '../time';
 	import type { DocumentRecord } from '../types';
@@ -27,18 +27,24 @@
 	}
 
 	async function reopen(d: DocumentRecord) {
-		await openFile(d.blob, d.name);
+		await openDocument(d);
 		onopen();
 	}
 
 	async function remove(e: MouseEvent, d: DocumentRecord) {
 		e.stopPropagation();
-		await db.transaction('rw', db.documents, db.notes, db.highlights, db.flashcards, async () => {
-			await db.documents.delete(d.id);
-			await db.notes.where('docId').equals(d.id).delete();
-			await db.highlights.where('docId').equals(d.id).delete();
-			await db.flashcards.where('docId').equals(d.id).delete();
-		});
+		await db.transaction(
+			'rw',
+			[db.documents, db.files, db.notes, db.highlights, db.flashcards, db.bookmarks],
+			async () => {
+				await db.documents.delete(d.id);
+				await db.files.delete(d.id);
+				await db.notes.where('docId').equals(d.id).delete();
+				await db.highlights.where('docId').equals(d.id).delete();
+				await db.flashcards.where('docId').equals(d.id).delete();
+				await db.bookmarks.where('docId').equals(d.id).delete();
+			}
+		);
 	}
 
 	function onDrop(e: DragEvent) {

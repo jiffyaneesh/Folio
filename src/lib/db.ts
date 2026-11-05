@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import type {
 	DocumentRecord,
+	DocumentFileRecord,
 	NoteRecord,
 	HighlightRecord,
 	FlashcardRecord,
@@ -9,6 +10,7 @@ import type {
 
 class FolioDB extends Dexie {
 	documents!: Table<DocumentRecord, string>;
+	files!: Table<DocumentFileRecord, string>;
 	notes!: Table<NoteRecord, string>;
 	highlights!: Table<HighlightRecord, string>;
 	flashcards!: Table<FlashcardRecord, string>;
@@ -25,6 +27,21 @@ class FolioDB extends Dexie {
 		this.version(2).stores({
 			bookmarks: 'id, docId, page, createdAt'
 		});
+		this.version(3)
+			.stores({
+				files: 'id'
+			})
+			.upgrade(async (tx) => {
+				await tx
+					.table('documents')
+					.toCollection()
+					.modify((doc: Record<string, unknown>) => {
+						if (doc.blob) {
+							tx.table('files').put({ id: doc.id, blob: doc.blob });
+							delete doc.blob;
+						}
+					});
+			});
 	}
 }
 

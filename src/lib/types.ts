@@ -4,7 +4,7 @@ export type Tab = 'notes' | 'highlights' | 'bookmarks' | 'outline';
 export interface DocumentRecord {
 	id: string; // content hash
 	name: string;
-	blob: Blob; // raw PDF binary, never base64
+	blob?: Blob; // optional / legacy; stored separately in files table for zero-thrash metadata updates
 	lastPage: number;
 	totalPages: number;
 	sessionTime: number; // accumulated seconds
@@ -13,6 +13,11 @@ export interface DocumentRecord {
 	zoom?: number;
 	activeTab?: Tab;
 	defaultAspect?: number;
+}
+
+export interface DocumentFileRecord {
+	id: string; // content hash matching DocumentRecord.id
+	blob: Blob;
 }
 
 export interface BookmarkRecord {

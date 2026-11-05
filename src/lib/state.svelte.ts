@@ -82,9 +82,12 @@ export async function openFile(file: File | Blob, name: string) {
 		const existing = await db.documents.get(id);
 		const now = Date.now();
 
+		// Always ensure the binary blob is saved in the dedicated files table
+		await db.files.put({ id, blob });
+
 		if (existing) {
+			await db.documents.update(id, { lastOpenedAt: now });
 			existing.lastOpenedAt = now;
-			await db.documents.put(existing);
 			app.doc = existing;
 			app.currentPage = existing.lastPage || 1;
 			app.zoom = existing.zoom || 1;
@@ -93,7 +96,6 @@ export async function openFile(file: File | Blob, name: string) {
 			const rec: DocumentRecord = {
 				id,
 				name,
-				blob,
 				lastPage: 1,
 				totalPages: 0,
 				sessionTime: 0,
@@ -116,6 +118,31 @@ export async function openFile(file: File | Blob, name: string) {
 	}
 }
 
+export async function openDocument(d: DocumentRecord) {
+	app.loading = true;
+	try {
+		let blob = d.blob;
+		if (!blob) {
+			const fileRec = await db.files.get(d.id);
+			blob = fileRec?.blob;
+		}
+		if (!blob) {
+			throw new Error('PDF file could not be found in storage');
+		}
+		const now = Date.now();
+		await db.documents.update(d.id, { lastOpenedAt: now });
+		d.lastOpenedAt = now;
+		app.doc = d;
+		app.currentPage = d.lastPage || 1;
+		app.zoom = d.zoom || 1;
+		if (d.activeTab) app.activeTab = d.activeTab;
+		app.pdfData = new Uint8Array(await blob.arrayBuffer());
+		app.sessionStart = now;
+	} finally {
+		app.loading = false;
+	}
+}
+
 export async function persistProgress() {
 	if (!app.doc) return;
 	const elapsed = app.sessionStart ? Math.floor((Date.now() - app.sessionStart) / 1000) : 0;
@@ -125,7 +152,14 @@ export async function persistProgress() {
 	app.doc.zoom = app.zoom;
 	app.doc.activeTab = app.activeTab;
 	app.sessionStart = Date.now();
-	await db.documents.put($state.snapshot(app.doc));
+	await db.documents.update(app.doc.id, {
+		lastPage: app.currentPage,
+		totalPages: app.totalPages,
+		sessionTime: app.doc.sessionTime,
+		zoom: app.zoom,
+		activeTab: app.activeTab,
+		lastOpenedAt: Date.now()
+	});
 }
 
 // ── Live collections (reactive via Dexie liveQuery) ──────────────────────────
