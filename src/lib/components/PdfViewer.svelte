@@ -159,7 +159,11 @@
 		const last = range.getClientRects();
 		const r = last[last.length - 1];
 		const wrap = scrollEl.getBoundingClientRect();
-		selectionBtn = { x: Math.max(12, r.right - wrap.left), y: r.bottom - wrap.top + scrollEl.scrollTop };
+		const maxX = Math.max(12, wrap.width - 230);
+		selectionBtn = {
+			x: Math.max(12, Math.min(maxX, r.right - wrap.left)),
+			y: r.bottom - wrap.top + scrollEl.scrollTop
+		};
 	}
 
 	function findPageEl(node: Node): HTMLElement | null {
@@ -238,6 +242,7 @@
 	bind:this={scrollEl}
 	onscroll={onScroll}
 	onmouseup={onMouseUp}
+	ontouchend={onMouseUp}
 	role="region"
 	aria-label="PDF Document Pages"
 >
