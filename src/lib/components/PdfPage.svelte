@@ -40,10 +40,8 @@
 	let lastRenderedScale = 0;
 	let lastRenderedWidth = 0;
 
-	function getAspect() {
-		return initialAspect;
-	}
-	let aspect = $state(getAspect());
+	let measuredAspect = $state<number | null>(null);
+	let aspect = $derived(measuredAspect ?? initialAspect);
 	let cssHeight = $derived(Math.round(width * aspect));
 	const pageHighlights = $derived(highlights.filter((h) => h.page === pageNumber));
 
@@ -62,10 +60,10 @@
 			}
 
 			const base = page.getViewport({ scale: 1 });
-			const measuredAspect = base.height / base.width;
-			if (measuredAspect > 0 && Math.abs(measuredAspect - aspect) > 0.005) {
-				aspect = measuredAspect;
-				onsize?.(pageNumber, width * aspect);
+			const mAspect = base.height / base.width;
+			if (mAspect > 0 && Math.abs(mAspect - aspect) > 0.005) {
+				measuredAspect = mAspect;
+				onsize?.(pageNumber, width * mAspect);
 			}
 
 			const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -197,10 +195,9 @@
 	data-page={pageNumber}
 	style="width:{width}px;height:{cssHeight}px;"
 >
-	<canvas bind:this={canvas} class="pdf-canvas" class:is-hidden={!visible}></canvas>
-	<div bind:this={textEl} class="textLayer" class:is-hidden={!visible}></div>
-
 	{#if visible}
+		<canvas bind:this={canvas} class="pdf-canvas"></canvas>
+		<div bind:this={textEl} class="textLayer"></div>
 		<div class="hl-layer">
 			{#each pageHighlights as h (h.id)}
 				{#each h.rects as r}
@@ -212,9 +209,7 @@
 				{/each}
 			{/each}
 		</div>
-	{/if}
-
-	{#if !visible}
+	{:else}
 		<div class="pdf-placeholder">
 			<span class="ph-num">Page {pageNumber}</span>
 		</div>
@@ -237,9 +232,6 @@
 		width: 100%;
 		height: 100%;
 		background: #ffffff;
-	}
-	.is-hidden {
-		display: none !important;
 	}
 	.pdf-placeholder {
 		width: 100%;

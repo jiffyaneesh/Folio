@@ -27,49 +27,22 @@
 		{ label: 'Pink', color: 'rgba(244, 63, 94, 0.35)', dot: '#f43f5e' }
 	];
 
-	const BUNCH_SIZE = 20; // Generous 20 pages before + 20 pages after for buttery smooth scrolling
-	const BUNCH_SHIFT_THRESHOLD = 5; // Only slide window when moved >= 5 pages to avoid continuous re-renders
+	const BUNCH_SIZE = 2; // 2 pages before + 2 pages after (5 pages max for ultra-low memory)
+	const BUNCH_SHIFT_THRESHOLD = 1; // Smoothly slide window with page progression
 	let lastBunchCenter = 0;
 	let isJumping = false;
 	let jumpTimeout: ReturnType<typeof setTimeout> | null = null;
 	let rafScroll = 0;
 
-	function getPageEl(page: number): HTMLElement | null {
-		if (!scrollEl) return null;
-		// Fast O(1) direct children lookup
-		const direct = scrollEl.children[page - 1] as HTMLElement | undefined;
-		if (direct && direct.dataset?.page === String(page)) {
-			return direct;
-		}
-		return scrollEl.querySelector<HTMLElement>(`[data-page="${page}"]`);
-	}
-
 	function findCurrentPage(): number {
 		if (!scrollEl || !doc || doc.numPages === 0) return 1;
-		const targetY = scrollEl.scrollTop + scrollEl.clientHeight * 0.4;
-		let low = 1;
-		let high = doc.numPages;
-		let result = 1;
-
-		while (low <= high) {
-			const mid = Math.floor((low + high) / 2);
-			const el = getPageEl(mid);
-			if (!el) break;
-
-			const top = el.offsetTop;
-			const bottom = top + el.offsetHeight + 24;
-
-			if (targetY >= top && targetY < bottom) {
-				return mid;
-			} else if (targetY < top) {
-				high = mid - 1;
-				result = mid;
-			} else {
-				low = mid + 1;
-				result = mid;
-			}
+		const targetY = scrollEl.scrollTop + scrollEl.clientHeight * 0.35;
+		const pageHeight = Math.round(colWidth * documentAspect) + 24;
+		if (pageHeight > 24) {
+			const estimated = Math.floor(targetY / pageHeight) + 1;
+			return Math.min(Math.max(1, estimated), doc.numPages);
 		}
-		return Math.min(Math.max(1, result), doc.numPages);
+		return 1;
 	}
 
 	function updateBunch(centerPage: number, force = false) {
@@ -89,19 +62,10 @@
 	}
 
 	function scrollTargetIntoView(target: number, behavior: ScrollBehavior) {
-		const el = getPageEl(target);
-		if (el && scrollEl) {
-			const top = Math.max(0, el.offsetTop - 16);
-			scrollEl.scrollTo({ top, behavior });
-		} else {
-			requestAnimationFrame(() => {
-				const elRetry = getPageEl(target);
-				if (elRetry && scrollEl) {
-					const top = Math.max(0, elRetry.offsetTop - 16);
-					scrollEl.scrollTo({ top, behavior });
-				}
-			});
-		}
+		if (!scrollEl || !doc) return;
+		const pageHeight = Math.round(colWidth * documentAspect) + 24;
+		const targetTop = Math.max(0, (target - 1) * pageHeight);
+		scrollEl.scrollTo({ top: targetTop, behavior });
 	}
 
 	async function init() {
