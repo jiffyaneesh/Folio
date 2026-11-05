@@ -11,15 +11,43 @@
 	} from '$lib/state.svelte';
 	import { search } from '$lib/search.svelte';
 	import { isDue } from '$lib/sm2';
-	import PdfViewer from '$lib/components/PdfViewer.svelte';
-	import DetailsPanel from '$lib/components/DetailsPanel.svelte';
+	import type PdfViewer from '$lib/components/PdfViewer.svelte';
+	import type DetailsPanel from '$lib/components/DetailsPanel.svelte';
+	import type ReviewMode from '$lib/components/ReviewMode.svelte';
 	import Library from '$lib/components/Library.svelte';
-	import ReviewMode from '$lib/components/ReviewMode.svelte';
 	import type { NoteRecord, HighlightRecord, FlashcardRecord, BookmarkRecord } from '$lib/types';
 
 	let view = $state<'library' | 'reader'>('library');
 	let reviewing = $state(false);
 	let viewer = $state<PdfViewer | null>(null);
+
+	let PdfViewerComp = $state<typeof PdfViewer | null>(null);
+	let DetailsPanelComp = $state<typeof DetailsPanel | null>(null);
+	let ReviewModeComp = $state<typeof ReviewMode | null>(null);
+
+	async function loadReaderComponents() {
+		if (!PdfViewerComp || !DetailsPanelComp) {
+			const [v, d] = await Promise.all([
+				import('$lib/components/PdfViewer.svelte'),
+				import('$lib/components/DetailsPanel.svelte')
+			]);
+			PdfViewerComp = v.default;
+			DetailsPanelComp = d.default;
+		}
+	}
+
+	async function openReader() {
+		await loadReaderComponents();
+		view = 'reader';
+	}
+
+	async function openReview() {
+		if (!ReviewModeComp) {
+			const r = await import('$lib/components/ReviewMode.svelte');
+			ReviewModeComp = r.default;
+		}
+		reviewing = true;
+	}
 
 	// Mobile bottom-sheet state
 	let sheetOpen = $state(false);
@@ -141,8 +169,8 @@
 </svelte:head>
 
 {#if view === 'library'}
-	<Library onopen={() => (view = 'reader')} />
-{:else}
+	<Library onopen={openReader} />
+{:else if PdfViewerComp && DetailsPanelComp}
 	<div class="shell" class:zen={app.zen}>
 		{#if !app.zen}
 			<header class="toolbar">
@@ -250,7 +278,7 @@
 		<main class="work" class:zen={app.zen}>
 			<section class="pdf-col" class:full={app.zen}>
 				{#if app.pdfData}
-					<PdfViewer bind:this={viewer} {highlights} />
+					<PdfViewerComp bind:this={viewer} {highlights} />
 				{/if}
 			</section>
 
@@ -278,13 +306,13 @@
 					>
 						<span class="grabber"></span>
 					</button>
-					<DetailsPanel
+					<DetailsPanelComp
 						{notes}
 						{highlights}
 						{flashcards}
 						{bookmarks}
 						{dueCount}
-						onreview={() => (reviewing = true)}
+						onreview={openReview}
 						ongoto={goto}
 					/>
 				</aside>
@@ -303,13 +331,37 @@
 			{/if}
 		</main>
 	</div>
+{:else}
+	<div class="loading-reader">
+		<span class="material-symbols-outlined spin">progress_activity</span>
+		<p>Opening document…</p>
+	</div>
 {/if}
 
-{#if reviewing}
-	<ReviewMode cards={flashcards} onclose={() => (reviewing = false)} />
+{#if reviewing && ReviewModeComp}
+	<ReviewModeComp cards={flashcards} onclose={() => (reviewing = false)} />
 {/if}
 
 <style>
+	.loading-reader {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		height: 100vh;
+		height: 100dvh;
+		gap: 12px;
+		color: var(--muted-foreground);
+		font-size: 14px;
+	}
+	.spin {
+		animation: spin 1s linear infinite;
+	}
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
 	.shell {
 		display: flex;
 		flex-direction: column;
