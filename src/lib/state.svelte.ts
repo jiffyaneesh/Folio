@@ -26,6 +26,7 @@ class AppState {
 	zen = $state(false);
 	theme = $state<'light' | 'dark'>('dark');
 	spreadMode = $state<'single' | 'double'>('single');
+	paperMode = $state<'normal' | 'sepia' | 'inverted'>('normal');
 	targetHighlightId = $state<string | null>(null);
 
 	pulseHighlight(id: string) {
@@ -49,6 +50,24 @@ class AppState {
 			const saved = localStorage.getItem('folio-spread-mode') as 'single' | 'double' | null;
 			if (saved === 'single' || saved === 'double') {
 				this.spreadMode = saved;
+			}
+		} catch {}
+	}
+
+	cyclePaperMode() {
+		if (this.paperMode === 'normal') this.paperMode = 'sepia';
+		else if (this.paperMode === 'sepia') this.paperMode = 'inverted';
+		else this.paperMode = 'normal';
+		try {
+			localStorage.setItem('folio-paper-mode', this.paperMode);
+		} catch {}
+	}
+
+	initPaperMode() {
+		try {
+			const saved = localStorage.getItem('folio-paper-mode') as 'normal' | 'sepia' | 'inverted' | null;
+			if (saved === 'normal' || saved === 'sepia' || saved === 'inverted') {
+				this.paperMode = saved;
 			}
 		} catch {}
 	}

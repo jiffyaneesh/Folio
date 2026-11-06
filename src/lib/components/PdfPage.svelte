@@ -193,6 +193,8 @@
 
 <div
 	class="pdf-page"
+	class:paper-sepia={app.paperMode === 'sepia'}
+	class:paper-inverted={app.paperMode === 'inverted'}
 	data-page={pageNumber}
 	style="width:{width}px;height:{cssHeight}px;"
 >
@@ -234,6 +236,25 @@
 		width: 100%;
 		height: 100%;
 		background: #ffffff;
+		transition: filter 0.2s ease;
+	}
+	.paper-sepia {
+		background: #fcf4e4;
+	}
+	.paper-sepia .pdf-canvas {
+		filter: sepia(0.35) contrast(0.96) brightness(0.97);
+		background: #fcf4e4;
+	}
+	.paper-inverted {
+		background: #111215;
+		border-color: #2b2d35;
+	}
+	.paper-inverted .pdf-canvas {
+		filter: invert(0.92) hue-rotate(180deg) contrast(1.05) brightness(0.95);
+		background: #111215;
+	}
+	.paper-inverted .pdf-placeholder {
+		background: #181a1f;
 	}
 	.pdf-placeholder {
 		width: 100%;

@@ -17,10 +17,12 @@
 	import type ReviewMode from '$lib/components/ReviewMode.svelte';
 	import Library from '$lib/components/Library.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import ShortcutsModal from '$lib/components/ShortcutsModal.svelte';
 	import type { NoteRecord, HighlightRecord, FlashcardRecord, BookmarkRecord } from '$lib/types';
 
 	let view = $state<'library' | 'reader'>('library');
 	let reviewing = $state(false);
+	let shortcutsOpen = $state(false);
 	let viewer = $state<PdfViewer | null>(null);
 
 	let PdfViewerComp = $state<typeof PdfViewer | null>(null);
@@ -138,6 +140,7 @@
 	onMount(() => {
 		app.initTheme();
 		app.initSpreadMode();
+		app.initPaperMode();
 		const tick = setInterval(() => (now = Date.now()), 30_000);
 		const persist = setInterval(() => view === 'reader' && persistProgress(), 15_000);
 		const onLeave = () => persistProgress();
@@ -151,6 +154,15 @@
 			} else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd' && view === 'reader') {
 				e.preventDefault();
 				app.toggleSpreadMode();
+			} else if (e.key === '?' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+				e.preventDefault();
+				shortcutsOpen = !shortcutsOpen;
+			} else if (e.key.toLowerCase() === 'p' && view === 'reader' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+				e.preventDefault();
+				app.cyclePaperMode();
+			} else if (e.key.toLowerCase() === 't' && view === 'reader' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+				e.preventDefault();
+				viewer?.toggleTts();
 			} else if (e.key.toLowerCase() === 'z' && view === 'reader' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
 				e.preventDefault();
 				app.zen = !app.zen;
@@ -269,6 +281,23 @@
 					</button>
 					<button
 						class="icon"
+						class:active={app.paperMode !== 'normal'}
+						onclick={() => app.cyclePaperMode()}
+						aria-label="Cycle paper tone (Normal, Sepia, Inverted Dark)"
+						title={`Paper color: ${app.paperMode} (P)`}
+					>
+						<Icon name="contrast" />
+					</button>
+					<button
+						class="icon"
+						onclick={() => (shortcutsOpen = true)}
+						aria-label="Keyboard shortcuts"
+						title="Keyboard Shortcuts (?)"
+					>
+						<Icon name="help_outline" />
+					</button>
+					<button
+						class="icon"
 						onclick={() => app.toggleTheme()}
 						aria-label="Toggle light or dark theme"
 						title={app.theme === 'dark' ? 'Switch to warm light theme' : 'Switch to dark theme'}
@@ -362,6 +391,8 @@
 {#if reviewing && ReviewModeComp}
 	<ReviewModeComp cards={flashcards} onclose={() => (reviewing = false)} />
 {/if}
+
+<ShortcutsModal open={shortcutsOpen} onclose={() => (shortcutsOpen = false)} />
 
 <style>
 	.loading-reader {
