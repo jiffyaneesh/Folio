@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { reviewCard } from '../state.svelte';
 	import { isDue } from '../sm2';
+	import Icon from './Icon.svelte';
 	import type { FlashcardRecord } from '../types';
 
 	interface Props {
@@ -46,20 +47,20 @@
 	<div class="sheet">
 		<header class="sheet-head">
 			<div class="head-meta">
-				<span class="material-symbols-outlined">style</span>
+				<Icon name="style" />
 				Active Recall
 			</div>
 			<div class="counter">
 				{#if !done}{Math.min(idx + 1, queue.length)} / {queue.length}{:else}Done{/if}
 			</div>
 			<button class="close" onclick={onclose} aria-label="Close review dialog">
-				<span class="material-symbols-outlined">close</span>
+				<Icon name="close" />
 			</button>
 		</header>
 
 		{#if done}
 			<div class="empty">
-				<span class="material-symbols-outlined big">task_alt</span>
+				<Icon name="task_alt" class="big" />
 				<p class="empty-title">All caught up</p>
 				<p class="empty-sub">
 					{queue.length
@@ -159,7 +160,7 @@
 		font-weight: 500;
 		color: var(--foreground);
 	}
-	.head-meta .material-symbols-outlined {
+	.head-meta :global(.material-symbols-outlined) {
 		font-size: 18px;
 		color: var(--accent);
 	}
@@ -279,7 +280,7 @@
 		padding: 32px 0;
 		text-align: center;
 	}
-	.material-symbols-outlined.big {
+	:global(.material-symbols-outlined.big) {
 		font-size: 44px;
 		color: var(--accent);
 	}

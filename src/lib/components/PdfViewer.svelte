@@ -6,6 +6,7 @@
 	import PdfPage from './PdfPage.svelte';
 	import SearchPanel from './SearchPanel.svelte';
 	import TtsPlayer from './TtsPlayer.svelte';
+	import Icon from './Icon.svelte';
 	import { tts } from '../tts.svelte';
 	import type { HighlightRecord, HighlightRect } from '../types';
 
@@ -283,7 +284,7 @@
 			aria-label="Highlight color selection"
 		>
 			<span class="hl-label">
-				<span class="material-symbols-outlined">ink_highlighter</span>
+				<Icon name="ink_highlighter" />
 			</span>
 			<div class="color-dots">
 				{#each highlightColors as c}
@@ -332,7 +333,7 @@
 		align-items: center;
 		color: var(--muted-foreground);
 	}
-	.hl-label .material-symbols-outlined {
+	.hl-label :global(.material-symbols-outlined) {
 		font-size: 16px;
 	}
 	.color-dots {

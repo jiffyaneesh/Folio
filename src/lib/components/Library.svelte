@@ -2,6 +2,7 @@
 	import { recentDocsQuery, openFile, openDocument, app } from '../state.svelte';
 	import { db } from '../db';
 	import { relTime } from '../time';
+	import Icon from './Icon.svelte';
 	import type { DocumentRecord } from '../types';
 
 	interface Props {
@@ -79,9 +80,7 @@
 			aria-label="Toggle theme"
 			title={app.theme === 'dark' ? 'Switch to warm light theme' : 'Switch to dark theme'}
 		>
-			<span class="material-symbols-outlined">
-				{app.theme === 'dark' ? 'light_mode' : 'dark_mode'}
-			</span>
+			<Icon name={app.theme === 'dark' ? 'light_mode' : 'dark_mode'} />
 		</button>
 		<a
 			class="nav-btn"
@@ -102,13 +101,13 @@
 
 	<div class="hero">
 		<div class="logo">
-			<span class="material-symbols-outlined">menu_book</span>
+			<Icon name="menu_book" />
 		</div>
 		<h1>Folio</h1>
 		<p class="tag">A calm, offline-first reader for papers and books.</p>
 
 		<button class="open-btn" onclick={() => fileInput?.click()}>
-			<span class="material-symbols-outlined">upload_file</span>
+			<Icon name="upload_file" />
 			Open PDF
 		</button>
 		<p class="drop-hint">or drop a file anywhere · stays on your device</p>
@@ -124,28 +123,28 @@
 	{#if !docs.length}
 		<ul class="features">
 			<li>
-				<span class="material-symbols-outlined">ink_highlighter</span>
+				<Icon name="ink_highlighter" />
 				<div>
 					<strong>Highlight & annotate</strong>
 					<span>Mark passages in multiple colors and attach notes as you read.</span>
 				</div>
 			</li>
 			<li>
-				<span class="material-symbols-outlined">bookmark_border</span>
+				<Icon name="bookmark_border" />
 				<div>
 					<strong>Smart bookmarking & state</strong>
 					<span>Never lose your reading position; jump back exactly where you stopped.</span>
 				</div>
 			</li>
 			<li>
-				<span class="material-symbols-outlined">search</span>
+				<Icon name="search" />
 				<div>
 					<strong>Instant full-text search</strong>
 					<span>Find any phrase or equation across all pages within milliseconds.</span>
 				</div>
 			</li>
 			<li>
-				<span class="material-symbols-outlined">cycle</span>
+				<Icon name="cycle" />
 				<div>
 					<strong>Active recall (SM-2)</strong>
 					<span>Turn highlighted citations into spaced-repetition cards automatically.</span>
@@ -167,9 +166,9 @@
 						onkeydown={(e) => e.key === 'Enter' && reopen(d)}
 					>
 						<div class="doc-thumb">
-							<span class="material-symbols-outlined">description</span>
+							<Icon name="description" />
 							<button class="del" onclick={(e) => remove(e, d)} aria-label={`Delete ${d.name}`}>
-								<span class="material-symbols-outlined">delete</span>
+								<Icon name="delete" />
 							</button>
 						</div>
 						<div class="doc-meta">
@@ -187,7 +186,7 @@
 	{#if dragging}
 		<div class="drop-overlay">
 			<div class="drop-card">
-				<span class="material-symbols-outlined">file_download</span>
+				<Icon name="file_download" />
 				Drop PDF to open
 			</div>
 		</div>
@@ -338,7 +337,7 @@
 		gap: 14px;
 		text-align: left;
 	}
-	.features li .material-symbols-outlined {
+	.features li :global(.material-symbols-outlined) {
 		font-size: 22px;
 		color: var(--accent);
 		flex-shrink: 0;
@@ -392,7 +391,7 @@
 		justify-content: center;
 		margin-bottom: 18px;
 	}
-	.logo .material-symbols-outlined {
+	.logo :global(.material-symbols-outlined) {
 		font-size: 30px;
 		color: var(--primary);
 	}
@@ -429,7 +428,7 @@
 		box-shadow: var(--shadow-elevated);
 		opacity: 0.95;
 	}
-	.open-btn .material-symbols-outlined {
+	.open-btn :global(.material-symbols-outlined) {
 		font-size: 20px;
 	}
 	.drop-hint {
@@ -483,7 +482,7 @@
 		border-color: var(--accent);
 		box-shadow: var(--shadow-soft);
 	}
-	.doc-thumb .material-symbols-outlined {
+	.doc-thumb :global(.material-symbols-outlined) {
 		font-size: 38px;
 		color: var(--muted-foreground);
 		opacity: 0.5;
@@ -512,7 +511,7 @@
 		color: #ffffff;
 		border-color: var(--destructive);
 	}
-	.del .material-symbols-outlined {
+	.del :global(.material-symbols-outlined) {
 		font-size: 15px;
 		opacity: 1;
 	}
@@ -559,7 +558,7 @@
 		color: var(--foreground);
 		box-shadow: var(--shadow-elevated);
 	}
-	.drop-card .material-symbols-outlined {
+	.drop-card :global(.material-symbols-outlined) {
 		font-size: 40px;
 		color: var(--accent);
 	}

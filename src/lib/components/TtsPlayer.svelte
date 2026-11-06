@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tts } from '../tts.svelte';
 	import { app } from '../state.svelte';
+	import Icon from './Icon.svelte';
 	import type { PDFDocumentProxy } from '../pdf';
 
 	interface Props {
@@ -32,9 +33,7 @@
 
 		<div class="tts-content">
 			<div class="tts-left">
-				<span class="material-symbols-outlined tts-icon" class:pulse={tts.isPlaying && !tts.isPaused}>
-					volume_up
-				</span>
+				<Icon name="volume_up" class="tts-icon {tts.isPlaying && !tts.isPaused ? 'pulse' : ''}" />
 				<div class="tts-meta">
 					<span class="tts-title">Page {tts.currentPage}</span>
 					<span class="tts-status">
@@ -56,9 +55,7 @@
 					aria-label={tts.isPaused ? 'Resume reading' : 'Pause reading'}
 					title={tts.isPaused ? 'Resume' : 'Pause'}
 				>
-					<span class="material-symbols-outlined">
-						{tts.isPaused ? 'play_arrow' : 'pause'}
-					</span>
+					<Icon name={tts.isPaused ? 'play_arrow' : 'pause'} />
 				</button>
 
 				<button
@@ -77,11 +74,11 @@
 					title={tts.autoAdvance ? 'Auto-turn page: ON' : 'Auto-turn page: OFF'}
 					aria-label="Toggle auto-advance page"
 				>
-					<span class="material-symbols-outlined">skip_next</span>
+					<Icon name="skip_next" />
 				</button>
 
 				<button class="tts-btn close-btn" onclick={close} aria-label="Stop audio reader" title="Stop">
-					<span class="material-symbols-outlined">close</span>
+					<Icon name="close" />
 				</button>
 			</div>
 		</div>
@@ -122,11 +119,11 @@
 		align-items: center;
 		gap: 9px;
 	}
-	.tts-icon {
+	.tts-left :global(.tts-icon) {
 		font-size: 20px;
 		color: var(--accent);
 	}
-	.tts-icon.pulse {
+	.tts-left :global(.tts-icon.pulse) {
 		animation: icon-pulse 1.5s infinite;
 	}
 	@keyframes icon-pulse {
@@ -177,7 +174,7 @@
 		background: var(--muted);
 		border-color: var(--accent);
 	}
-	.tts-btn .material-symbols-outlined {
+	.tts-btn :global(.material-symbols-outlined) {
 		font-size: 16px;
 	}
 	.play-btn {
@@ -230,7 +227,7 @@
 	.tts-auto.active {
 		color: var(--accent);
 	}
-	.tts-auto .material-symbols-outlined {
+	.tts-auto :global(.material-symbols-outlined) {
 		font-size: 16px;
 	}
 	.fade {

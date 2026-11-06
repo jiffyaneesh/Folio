@@ -16,6 +16,7 @@
 	import type DetailsPanel from '$lib/components/DetailsPanel.svelte';
 	import type ReviewMode from '$lib/components/ReviewMode.svelte';
 	import Library from '$lib/components/Library.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import type { NoteRecord, HighlightRecord, FlashcardRecord, BookmarkRecord } from '$lib/types';
 
 	let view = $state<'library' | 'reader'>('library');
@@ -178,15 +179,15 @@
 			<header class="toolbar">
 				<div class="left">
 					<button class="icon" onclick={backToLibrary} aria-label="Back to library" title="Library">
-						<span class="material-symbols-outlined">grid_view</span>
+						<Icon name="grid_view" />
 					</button>
 					<div class="zoom" role="group" aria-label="Zoom controls">
 						<button class="zbtn" onclick={() => (app.zoom = Math.max(0.5, app.zoom - 0.1))} aria-label="Zoom out">
-							<span class="material-symbols-outlined">remove</span>
+							<Icon name="remove" />
 						</button>
 						<span class="zlevel">{Math.round(app.zoom * 100)}%</span>
 						<button class="zbtn" onclick={() => (app.zoom = Math.min(3, app.zoom + 0.1))} aria-label="Zoom in">
-							<span class="material-symbols-outlined">add</span>
+							<Icon name="add" />
 						</button>
 					</div>
 					<button
@@ -196,9 +197,7 @@
 						aria-label={isCurrentPageBookmarked ? 'Remove bookmark' : 'Bookmark this page'}
 						title={isCurrentPageBookmarked ? 'Bookmarked (⌘B)' : 'Bookmark page (⌘B)'}
 					>
-						<span class="material-symbols-outlined">
-							{isCurrentPageBookmarked ? 'bookmark' : 'bookmark_border'}
-						</span>
+						<Icon name={isCurrentPageBookmarked ? 'bookmark' : 'bookmark_border'} />
 					</button>
 				</div>
 
@@ -213,7 +212,7 @@
 						title="Click to jump to page"
 					>
 						Page {app.currentPage} of {app.totalPages || '…'}
-						<span class="material-symbols-outlined sub-arrow">arrow_drop_down</span>
+						<Icon name="arrow_drop_down" class="sub-arrow" />
 					</button>
 
 					{#if pageInputOpen}
@@ -241,7 +240,7 @@
 						aria-label="Search document"
 						title="Search (⌘F)"
 					>
-						<span class="material-symbols-outlined">search</span>
+						<Icon name="search" />
 					</button>
 					<button
 						class="icon"
@@ -250,12 +249,10 @@
 						aria-label={tts.isPlaying ? 'Audio reader active' : 'Read page aloud'}
 						title={tts.isPlaying ? 'Audio Reader Active' : 'Read Page Aloud (TTS)'}
 					>
-						<span class="material-symbols-outlined">
-							{tts.isPlaying && !tts.isPaused ? 'volume_up' : 'volume_mute'}
-						</span>
+						<Icon name={tts.isPlaying && !tts.isPaused ? 'volume_up' : 'volume_mute'} />
 					</button>
 					<button class="icon" onclick={() => goto(app.currentPage)} aria-label="Recenter" title="Recenter page">
-						<span class="material-symbols-outlined">filter_center_focus</span>
+						<Icon name="filter_center_focus" />
 					</button>
 					<button
 						class="icon"
@@ -263,9 +260,7 @@
 						aria-label="Toggle light or dark theme"
 						title={app.theme === 'dark' ? 'Switch to warm light theme' : 'Switch to dark theme'}
 					>
-						<span class="material-symbols-outlined">
-							{app.theme === 'dark' ? 'light_mode' : 'dark_mode'}
-						</span>
+						<Icon name={app.theme === 'dark' ? 'light_mode' : 'dark_mode'} />
 					</button>
 					<button
 						class="icon zen-btn"
@@ -273,7 +268,7 @@
 						aria-label="Zen focus mode"
 						title="Zen Focus Mode (Z)"
 					>
-						<span class="material-symbols-outlined">fullscreen</span>
+						<Icon name="fullscreen" />
 					</button>
 					<button
 						class="icon panel-toggle"
@@ -282,7 +277,7 @@
 						aria-label="Notes panel"
 						title="Notes &amp; highlights"
 					>
-						<span class="material-symbols-outlined">edit_note</span>
+						<Icon name="edit_note" />
 					</button>
 				</div>
 			</header>
@@ -338,7 +333,7 @@
 					title="Exit Zen Mode (Z)"
 					aria-label="Exit Zen focus mode"
 				>
-					<span class="material-symbols-outlined">fullscreen_exit</span>
+					<Icon name="fullscreen_exit" />
 					<span>Exit Focus</span>
 				</button>
 			{/if}
@@ -346,7 +341,7 @@
 	</div>
 {:else}
 	<div class="loading-reader">
-		<span class="material-symbols-outlined spin">progress_activity</span>
+		<Icon name="progress_activity" class="spin" />
 		<p>Opening document…</p>
 	</div>
 {/if}
@@ -367,7 +362,7 @@
 		color: var(--muted-foreground);
 		font-size: 14px;
 	}
-	.spin {
+	:global(.spin) {
 		animation: spin 1s linear infinite;
 	}
 	@keyframes spin {
@@ -454,7 +449,7 @@
 		color: var(--foreground);
 		background: var(--muted);
 	}
-	.sub-arrow {
+	:global(.sub-arrow) {
 		font-size: 14px;
 		margin-left: 2px;
 	}
@@ -530,7 +525,7 @@
 	.bookmark-btn.active {
 		color: #f59e0b;
 	}
-	.icon .material-symbols-outlined {
+	.icon :global(.material-symbols-outlined) {
 		font-size: 20px;
 	}
 	.zoom {
@@ -555,7 +550,7 @@
 	.zbtn:hover {
 		color: var(--foreground);
 	}
-	.zbtn .material-symbols-outlined {
+	.zbtn :global(.material-symbols-outlined) {
 		font-size: 16px;
 	}
 	.zlevel {
@@ -614,7 +609,7 @@
 		opacity: 1;
 		transform: translateY(-1px);
 	}
-	.zen-exit .material-symbols-outlined {
+	.zen-exit :global(.material-symbols-outlined) {
 		font-size: 16px;
 	}
 

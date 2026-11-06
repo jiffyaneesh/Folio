@@ -2,6 +2,7 @@
 	import { app, addNote, deleteNote, deleteHighlight, deleteBookmark } from '../state.svelte';
 	import { relTime } from '../time';
 	import SessionTimer from './SessionTimer.svelte';
+	import Icon from './Icon.svelte';
 	import type { NoteRecord, HighlightRecord, FlashcardRecord, BookmarkRecord, Tab } from '../types';
 
 	interface Props {
@@ -310,7 +311,7 @@ tags:
 				title="Export notes and flashcards"
 				aria-label="Export options"
 			>
-				<span class="material-symbols-outlined">download</span>
+				<Icon name="download" />
 			</button>
 			{#if exportMenuOpen}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -318,28 +319,28 @@ tags:
 				<div class="export-menu fade" onclick={(e) => e.stopPropagation()}>
 					<div class="export-menu-head">Export Options</div>
 					<button class="export-item" onclick={exportObsidianMarkdown}>
-						<span class="material-symbols-outlined e-icon">description</span>
+						<Icon name="description" class="e-icon" />
 						<div class="e-info">
 							<span class="e-title">Obsidian Markdown</span>
 							<span class="e-desc">Frontmatter, callouts &amp; quotes</span>
 						</div>
 					</button>
 					<button class="export-item" onclick={exportAnkiDeck}>
-						<span class="material-symbols-outlined e-icon">style</span>
+						<Icon name="style" class="e-icon" />
 						<div class="e-info">
 							<span class="e-title">Anki Flashcard Deck</span>
 							<span class="e-desc">One-click TSV import format</span>
 						</div>
 					</button>
 					<button class="export-item" onclick={exportStandardMarkdown}>
-						<span class="material-symbols-outlined e-icon">article</span>
+						<Icon name="article" class="e-icon" />
 						<div class="e-info">
 							<span class="e-title">Standard Markdown</span>
 							<span class="e-desc">Plain markdown headings &amp; quotes</span>
 						</div>
 					</button>
 					<button class="export-item" onclick={exportJsonBackup}>
-						<span class="material-symbols-outlined e-icon">data_object</span>
+						<Icon name="data_object" class="e-icon" />
 						<div class="e-info">
 							<span class="e-title">Full JSON Backup</span>
 							<span class="e-desc">Everything including SM-2 stats</span>
@@ -357,7 +358,7 @@ tags:
 		{#if app.activeTab === 'notes'}
 			{#if notes.length === 0}
 				<div class="empty">
-					<span class="material-symbols-outlined">edit_note</span>
+					<Icon name="edit_note" />
 					<p>No notes yet. Write one below.</p>
 				</div>
 			{/if}
@@ -368,7 +369,7 @@ tags:
 						<div class="head-right">
 							<span class="time">{relTime(n.createdAt)}</span>
 							<button class="mini" data-action="del-note" data-id={n.id} aria-label="Delete note">
-								<span class="material-symbols-outlined">close</span>
+								<Icon name="close" />
 							</button>
 						</div>
 					</div>
@@ -393,7 +394,7 @@ tags:
 			{/if}
 			{#if filteredHighlights.length === 0}
 				<div class="empty">
-					<span class="material-symbols-outlined">ink_highlighter</span>
+					<Icon name="ink_highlighter" />
 					<p>{highlights.length === 0 ? 'Select text in the document to highlight it.' : 'No highlights in this category.'}</p>
 				</div>
 			{/if}
@@ -410,21 +411,21 @@ tags:
 						<div class="head-right">
 							<span class="time">{relTime(h.createdAt)}</span>
 							<button class="mini" data-action="reply" data-id={h.id} aria-label="Add note to highlight">
-								<span class="material-symbols-outlined">add_comment</span>
+								<Icon name="add_comment" />
 							</button>
 							<button class="mini" data-action="del-hl" data-id={h.id} aria-label="Delete highlight">
-								<span class="material-symbols-outlined">close</span>
+								<Icon name="close" />
 							</button>
 						</div>
 					</div>
 					<p class="body quote" style="border-left-color: {getCategoryColor(h.color)}">{h.text}</p>
-					{#if h.noteId}<span class="linked"><span class="material-symbols-outlined">link</span>Note attached</span>{/if}
+					{#if h.noteId}<span class="linked"><Icon name="link" />Note attached</span>{/if}
 				</div>
 			{/each}
 		{:else if app.activeTab === 'bookmarks'}
 			{#if bookmarks.length === 0}
 				<div class="empty">
-					<span class="material-symbols-outlined">bookmark_border</span>
+					<Icon name="bookmark_border" />
 					<p>No bookmarks yet. Click the bookmark icon in the toolbar to save pages.</p>
 				</div>
 			{/if}
@@ -435,7 +436,7 @@ tags:
 						<div class="head-right">
 							<span class="time">{relTime(b.createdAt)}</span>
 							<button class="mini" data-action="del-bm" data-id={b.id} aria-label="Remove bookmark">
-								<span class="material-symbols-outlined">close</span>
+								<Icon name="close" />
 							</button>
 						</div>
 					</div>
@@ -445,7 +446,7 @@ tags:
 		{:else}
 			{#if app.outline.length === 0}
 				<div class="empty">
-					<span class="material-symbols-outlined">toc</span>
+					<Icon name="toc" />
 					<p>This document has no embedded outline.</p>
 				</div>
 			{/if}
@@ -469,10 +470,10 @@ tags:
 		<div class="composer" class:reply={replyTo}>
 			{#if replyTo}
 				<div class="reply-chip">
-					<span class="material-symbols-outlined">format_quote</span>
+					<Icon name="format_quote" />
 					<span class="reply-text">{replyTo.text}</span>
 					<button onclick={() => (replyTo = null)} aria-label="Cancel reply">
-						<span class="material-symbols-outlined">close</span>
+						<Icon name="close" />
 					</button>
 				</div>
 			{/if}
@@ -622,7 +623,7 @@ tags:
 	.export-item:hover {
 		background: var(--muted);
 	}
-	.e-icon {
+	:global(.e-icon) {
 		font-size: 18px;
 		color: var(--accent);
 		flex-shrink: 0;
@@ -718,7 +719,7 @@ tags:
 		color: var(--foreground);
 		border-color: var(--accent);
 	}
-	.export-btn .material-symbols-outlined {
+	.export-btn :global(.material-symbols-outlined) {
 		font-size: 16px;
 	}
 	.list {
@@ -789,7 +790,7 @@ tags:
 		color: var(--destructive);
 		background: var(--muted);
 	}
-	.mini .material-symbols-outlined {
+	.mini :global(.material-symbols-outlined) {
 		font-size: 15px;
 	}
 	.body {
@@ -812,7 +813,7 @@ tags:
 		font-size: 10.5px;
 		color: var(--muted-foreground);
 	}
-	.linked .material-symbols-outlined {
+	.linked :global(.material-symbols-outlined) {
 		font-size: 12px;
 	}
 	.outline-row {
@@ -850,7 +851,7 @@ tags:
 		text-align: center;
 		color: var(--muted-foreground);
 	}
-	.empty .material-symbols-outlined {
+	.empty :global(.material-symbols-outlined) {
 		font-size: 32px;
 		opacity: 0.5;
 	}
@@ -898,7 +899,7 @@ tags:
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.reply-chip .material-symbols-outlined {
+	.reply-chip :global(.material-symbols-outlined) {
 		font-size: 14px;
 	}
 	.reply-chip button {

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { search } from '../search.svelte';
+	import Icon from './Icon.svelte';
 
 	interface Props {
 		ongoto: (page: number) => void;
@@ -33,7 +34,7 @@
 {#if search.open}
 	<div class="search" role="search" aria-label="In-document search">
 		<div class="bar">
-			<span class="material-symbols-outlined search-icon">search</span>
+			<Icon name="search" class="search-icon" />
 			<input
 				bind:this={inputEl}
 				bind:value={search.query}
@@ -47,7 +48,7 @@
 				<span class="count">{search.hits.length}</span>
 			{/if}
 			<button class="x" onclick={close} aria-label="Close search">
-				<span class="material-symbols-outlined">close</span>
+				<Icon name="close" />
 			</button>
 		</div>
 
@@ -90,7 +91,7 @@
 		gap: 8px;
 		padding: 8px 12px;
 	}
-	.search-icon {
+	.bar :global(.search-icon) {
 		font-size: 18px;
 		color: var(--muted-foreground);
 	}
@@ -129,7 +130,7 @@
 	.x:hover {
 		color: var(--foreground);
 	}
-	.x .material-symbols-outlined {
+	.x :global(.material-symbols-outlined) {
 		font-size: 16px;
 	}
 	.results {

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { onMount } from 'svelte';
+	import Icon from '$lib/components/Icon.svelte';
 
 	let { children } = $props();
 	let toast = $state<'offline' | 'update' | null>(null);
@@ -32,10 +33,10 @@
 {#if toast}
 	<div class="toast">
 		{#if toast === 'offline'}
-			<span class="material-symbols-outlined">offline_bolt</span>
+			<Icon name="offline_bolt" />
 			Ready to work offline
 		{:else}
-			<span class="material-symbols-outlined">refresh</span>
+			<Icon name="refresh" />
 			New version available
 			<button onclick={() => updateSW?.()}>Reload</button>
 		{/if}
@@ -61,7 +62,7 @@
 		box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.7);
 		animation: rise 0.25s ease;
 	}
-	.toast .material-symbols-outlined {
+	.toast :global(.material-symbols-outlined) {
 		font-size: 18px;
 	}
 	.toast button {
