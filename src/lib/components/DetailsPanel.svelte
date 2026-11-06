@@ -61,7 +61,14 @@
 			}
 			return;
 		}
-		if (el?.dataset.page) ongoto(Number(el.dataset.page));
+		if (el?.dataset.page) {
+			const page = Number(el.dataset.page);
+			const hlId = el.dataset.hlId;
+			if (hlId) {
+				app.pulseHighlight(hlId);
+			}
+			ongoto(page);
+		}
 	}
 
 	function onListKeyDown(e: KeyboardEvent) {
@@ -69,13 +76,167 @@
 			const target = (e.target as HTMLElement).closest('[data-page]') as HTMLElement | null;
 			if (target?.dataset.page) {
 				e.preventDefault();
+				const hlId = target.dataset.hlId;
+				if (hlId) {
+					app.pulseHighlight(hlId);
+				}
 				ongoto(Number(target.dataset.page));
 			}
 		}
 	}
 
-	function exportMarkdown() {
+	const colorCategories = [
+		{ id: 'all', label: 'All', color: '' },
+		{ id: '245', label: 'Ideas', color: '#f59e0b' },
+		{ id: '59', label: 'Facts', color: '#3b82f6' },
+		{ id: '16', label: 'Quotes', color: '#10b981' },
+		{ id: '244', label: 'Questions', color: '#f43f5e' }
+	];
+	let activeColorFilter = $state<string>('all');
+
+	function getCategoryLabel(color: string): string {
+		if (color.includes('245')) return 'Idea';
+		if (color.includes('59')) return 'Fact';
+		if (color.includes('16')) return 'Quote';
+		if (color.includes('244')) return 'Question';
+		return 'Highlight';
+	}
+
+	function getCategoryColor(color: string): string {
+		if (color.includes('245')) return '#f59e0b';
+		if (color.includes('59')) return '#3b82f6';
+		if (color.includes('16')) return '#10b981';
+		if (color.includes('244')) return '#f43f5e';
+		return '#f59e0b';
+	}
+
+	const countsByColor = $derived<Record<string, number>>({
+		all: highlights.length,
+		'245': highlights.filter((h) => h.color.includes('245')).length,
+		'59': highlights.filter((h) => h.color.includes('59')).length,
+		'16': highlights.filter((h) => h.color.includes('16')).length,
+		'244': highlights.filter((h) => h.color.includes('244')).length
+	});
+
+	const filteredHighlights = $derived(
+		activeColorFilter === 'all'
+			? highlights
+			: highlights.filter((h) => h.color.includes(activeColorFilter))
+	);
+
+	let exportMenuOpen = $state(false);
+
+	function downloadFile(content: string, filename: string, mime: string) {
+		const blob = new Blob([content], { type: `${mime};charset=utf-8` });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = filename;
+		a.click();
+		URL.revokeObjectURL(url);
+		exportMenuOpen = false;
+	}
+
+	function sanitizeFileName(name: string) {
+		return name.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
+	}
+
+	function exportObsidianMarkdown() {
 		if (!app.doc) return;
+		const baseName = sanitizeFileName(app.doc.name);
+		const dateStr = new Date().toISOString().slice(0, 10);
+
+		let md = `---
+title: "${app.doc.name.replace(/"/g, '\\"')}"
+source: "Folio"
+date: ${dateStr}
+total_pages: ${app.totalPages}
+progress: ${app.progress}%
+tags:
+  - reading
+  - research
+  - folio
+---
+
+# ${app.doc.name}
+
+> [!info] Document Metadata
+> - **Total Pages**: ${app.totalPages}
+> - **Reading Progress**: ${app.progress}%
+> - **Highlights Count**: ${highlights.length}
+> - **Notes Count**: ${notes.length}
+> - **Flashcards Count**: ${flashcards.length}
+> - **Exported Date**: ${dateStr}
+
+---
+
+`;
+
+		if (highlights.length > 0) {
+			md += `## Highlights & Quotes\n\n`;
+			for (const h of highlights) {
+				const cat = getCategoryLabel(h.color);
+				md += `> [!quote] Page ${h.page} · #${cat.toLowerCase()}\n`;
+				md += `> ${h.text.replace(/\n/g, '\n> ')}\n\n`;
+
+				const linkedNote = notes.find((n) => n.highlightId === h.id || n.id === h.noteId);
+				if (linkedNote) {
+					md += `> [!note] Insight on Page ${h.page}\n`;
+					md += `> ${linkedNote.body.replace(/\n/g, '\n> ')}\n\n`;
+				}
+			}
+		}
+
+		const standAloneNotes = notes.filter(
+			(n) => !n.highlightId && !highlights.some((h) => h.noteId === n.id)
+		);
+		if (standAloneNotes.length > 0) {
+			md += `## Notes\n\n`;
+			for (const n of standAloneNotes) {
+				md += `### Page ${n.page} · ${new Date(n.createdAt).toLocaleDateString()}\n\n`;
+				md += `${n.body}\n\n`;
+			}
+		}
+
+		if (bookmarks.length > 0) {
+			md += `## Bookmarks\n\n`;
+			for (const b of bookmarks) {
+				md += `- **Page ${b.page}**: ${b.title || 'Bookmark'}\n`;
+			}
+			md += '\n';
+		}
+
+		downloadFile(md, `${baseName}-obsidian.md`, 'text/markdown');
+	}
+
+	function exportAnkiDeck() {
+		if (!app.doc) return;
+		const baseName = sanitizeFileName(app.doc.name);
+		let tsv = `#separator:tab\n#html:true\n#tags column:3\n`;
+
+		for (const c of flashcards) {
+			const front = c.front.replace(/\t/g, ' ').replace(/\n/g, '<br>');
+			const back = c.back.replace(/\t/g, ' ').replace(/\n/g, '<br>');
+			const tag = `Folio ${baseName}`;
+			tsv += `"${front}"\t"${back}"\t"${tag}"\n`;
+		}
+
+		for (const h of highlights) {
+			const linkedNote = notes.find((n) => n.highlightId === h.id || n.id === h.noteId);
+			if (linkedNote && !flashcards.some((c) => c.highlightId === h.id)) {
+				const front = h.text.replace(/\t/g, ' ').replace(/\n/g, '<br>');
+				const back = linkedNote.body.replace(/\t/g, ' ').replace(/\n/g, '<br>');
+				const tag = `Folio ${baseName} Page_${h.page}`;
+				tsv += `"${front}"\t"${back}"\t"${tag}"\n`;
+			}
+		}
+
+		downloadFile(tsv, `${baseName}-anki.txt`, 'text/tab-separated-values');
+	}
+
+	function exportStandardMarkdown() {
+		if (!app.doc) return;
+		const baseName = sanitizeFileName(app.doc.name);
 		let md = `# ${app.doc.name}\n\n`;
 		md += `*Exported from Folio on ${new Date().toLocaleDateString()}*\n`;
 		md += `- Total Pages: ${app.totalPages}\n`;
@@ -105,13 +266,28 @@
 			md += '\n';
 		}
 
-		const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `${app.doc.name.replace(/[^a-zA-Z0-9_-]/g, '_')}-notes.md`;
-		a.click();
-		URL.revokeObjectURL(url);
+		downloadFile(md, `${baseName}-notes.md`, 'text/markdown');
+	}
+
+	function exportJsonBackup() {
+		if (!app.doc) return;
+		const baseName = sanitizeFileName(app.doc.name);
+		const data = {
+			version: '1.0',
+			exportedAt: Date.now(),
+			document: {
+				id: app.doc.id,
+				name: app.doc.name,
+				lastPage: app.doc.lastPage,
+				totalPages: app.totalPages,
+				sessionTime: app.doc.sessionTime
+			},
+			notes,
+			highlights,
+			bookmarks,
+			flashcards
+		};
+		downloadFile(JSON.stringify(data, null, 2), `${baseName}-backup.json`, 'application/json');
 	}
 </script>
 
@@ -126,9 +302,52 @@
 				</button>
 			{/each}
 		</div>
-		<button class="export-btn" onclick={exportMarkdown} title="Export notes and highlights to Markdown" aria-label="Export to Markdown">
-			<span class="material-symbols-outlined">download</span>
-		</button>
+		<div class="export-wrap">
+			<button
+				class="export-btn"
+				class:active={exportMenuOpen}
+				onclick={() => (exportMenuOpen = !exportMenuOpen)}
+				title="Export notes and flashcards"
+				aria-label="Export options"
+			>
+				<span class="material-symbols-outlined">download</span>
+			</button>
+			{#if exportMenuOpen}
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<!-- svelte-ignore a11y_click_events_have_key_events -->
+				<div class="export-menu fade" onclick={(e) => e.stopPropagation()}>
+					<div class="export-menu-head">Export Options</div>
+					<button class="export-item" onclick={exportObsidianMarkdown}>
+						<span class="material-symbols-outlined e-icon">description</span>
+						<div class="e-info">
+							<span class="e-title">Obsidian Markdown</span>
+							<span class="e-desc">Frontmatter, callouts &amp; quotes</span>
+						</div>
+					</button>
+					<button class="export-item" onclick={exportAnkiDeck}>
+						<span class="material-symbols-outlined e-icon">style</span>
+						<div class="e-info">
+							<span class="e-title">Anki Flashcard Deck</span>
+							<span class="e-desc">One-click TSV import format</span>
+						</div>
+					</button>
+					<button class="export-item" onclick={exportStandardMarkdown}>
+						<span class="material-symbols-outlined e-icon">article</span>
+						<div class="e-info">
+							<span class="e-title">Standard Markdown</span>
+							<span class="e-desc">Plain markdown headings &amp; quotes</span>
+						</div>
+					</button>
+					<button class="export-item" onclick={exportJsonBackup}>
+						<span class="material-symbols-outlined e-icon">data_object</span>
+						<div class="e-info">
+							<span class="e-title">Full JSON Backup</span>
+							<span class="e-desc">Everything including SM-2 stats</span>
+						</div>
+					</button>
+				</div>
+			{/if}
+		</div>
 	</div>
 
 	{#key app.activeTab}
@@ -157,16 +376,37 @@
 				</div>
 			{/each}
 		{:else if app.activeTab === 'highlights'}
-			{#if highlights.length === 0}
-				<div class="empty">
-					<span class="material-symbols-outlined">ink_highlighter</span>
-					<p>Select text in the document to highlight it.</p>
+			{#if highlights.length > 0}
+				<div class="filter-bar">
+					{#each colorCategories as c}
+						<button
+							class="filter-pill"
+							class:active={activeColorFilter === c.id}
+							onclick={() => (activeColorFilter = c.id)}
+						>
+							{#if c.color}<span class="pill-dot" style="background-color: {c.color};"></span>{/if}
+							<span>{c.label}</span>
+							<span class="pill-cnt">{countsByColor[c.id]}</span>
+						</button>
+					{/each}
 				</div>
 			{/if}
-			{#each highlights as h (h.id)}
-				<div class="card hl" data-page={h.page} role="button" tabindex="0">
+			{#if filteredHighlights.length === 0}
+				<div class="empty">
+					<span class="material-symbols-outlined">ink_highlighter</span>
+					<p>{highlights.length === 0 ? 'Select text in the document to highlight it.' : 'No highlights in this category.'}</p>
+				</div>
+			{/if}
+			{#each filteredHighlights as h (h.id)}
+				<div class="card hl" data-page={h.page} data-hl-id={h.id} role="button" tabindex="0">
 					<div class="card-head">
-						<span class="badge">Pg. {h.page}</span>
+						<div class="badge-group">
+							<span class="badge">Pg. {h.page}</span>
+							<span class="cat-tag" style="color: {getCategoryColor(h.color)}">
+								<span class="cat-dot" style="background-color: {getCategoryColor(h.color)}"></span>
+								{getCategoryLabel(h.color)}
+							</span>
+						</div>
 						<div class="head-right">
 							<span class="time">{relTime(h.createdAt)}</span>
 							<button class="mini" data-action="reply" data-id={h.id} aria-label="Add note to highlight">
@@ -177,7 +417,7 @@
 							</button>
 						</div>
 					</div>
-					<p class="body quote">{h.text}</p>
+					<p class="body quote" style="border-left-color: {getCategoryColor(h.color)}">{h.text}</p>
 					{#if h.noteId}<span class="linked"><span class="material-symbols-outlined">link</span>Note attached</span>{/if}
 				</div>
 			{/each}
@@ -338,6 +578,127 @@
 		height: 2px;
 		background: var(--accent);
 		border-radius: 2px;
+	}
+	.export-wrap {
+		position: relative;
+	}
+	.export-menu {
+		position: absolute;
+		right: 0;
+		top: 36px;
+		width: 250px;
+		background: var(--card);
+		color: var(--foreground);
+		border: 1px solid var(--border);
+		border-radius: var(--radius, 12px);
+		box-shadow: var(--shadow-elevated, 0 10px 25px -5px rgba(0, 0, 0, 0.3));
+		padding: 6px;
+		z-index: 50;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.export-menu-head {
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--muted-foreground);
+		padding: 6px 10px 4px;
+	}
+	.export-item {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 8px 10px;
+		border-radius: var(--radius-sm, 8px);
+		border: none;
+		background: transparent;
+		color: var(--foreground);
+		cursor: pointer;
+		text-align: left;
+		transition: background 0.12s ease;
+	}
+	.export-item:hover {
+		background: var(--muted);
+	}
+	.e-icon {
+		font-size: 18px;
+		color: var(--accent);
+		flex-shrink: 0;
+	}
+	.e-info {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.e-title {
+		font-size: 12.5px;
+		font-weight: 500;
+		line-height: 1.2;
+	}
+	.e-desc {
+		font-size: 10.5px;
+		color: var(--muted-foreground);
+		line-height: 1.2;
+	}
+
+	.filter-bar {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin-bottom: 6px;
+	}
+	.filter-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		padding: 3px 8px;
+		border-radius: 20px;
+		background: var(--card);
+		border: 1px solid var(--border);
+		color: var(--muted-foreground);
+		font-size: 11.5px;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+	.filter-pill:hover {
+		border-color: var(--muted-foreground);
+		color: var(--foreground);
+	}
+	.filter-pill.active {
+		background: var(--secondary);
+		border-color: var(--accent);
+		color: var(--foreground);
+		font-weight: 500;
+	}
+	.pill-dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+	}
+	.pill-cnt {
+		font-size: 10px;
+		opacity: 0.75;
+		font-family: ui-monospace, 'JetBrains Mono', monospace;
+	}
+
+	.badge-group {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.cat-tag {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 11px;
+		font-weight: 500;
+	}
+	.cat-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
 	}
 	.export-btn {
 		width: 30px;

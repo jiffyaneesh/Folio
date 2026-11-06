@@ -25,6 +25,16 @@ class AppState {
 	loading = $state(false);
 	zen = $state(false);
 	theme = $state<'light' | 'dark'>('dark');
+	targetHighlightId = $state<string | null>(null);
+
+	pulseHighlight(id: string) {
+		this.targetHighlightId = id;
+		setTimeout(() => {
+			if (this.targetHighlightId === id) {
+				this.targetHighlightId = null;
+			}
+		}, 2500);
+	}
 
 	get progress(): number {
 		if (!this.totalPages) return 0;

@@ -2,6 +2,7 @@
 	import { onDestroy } from 'svelte';
 	import { TextLayer } from 'pdfjs-dist';
 	import { releaseCanvas } from '../pdf';
+	import { app } from '../state.svelte';
 	import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 	import type { HighlightRecord } from '../types';
 
@@ -203,6 +204,7 @@
 				{#each h.rects as r}
 					<div
 						class="hl-rect"
+						class:is-active-target={app.targetHighlightId === h.id}
 						style="left:{r.x * 100}%;top:{r.y * 100}%;width:{r.w * 100}%;height:{r.h *
 							100}%;background:{h.color};"
 					></div>
@@ -303,6 +305,27 @@
 		position: absolute;
 		border-radius: 3px;
 		mix-blend-mode: multiply;
+		transition: outline 0.2s ease, box-shadow 0.2s ease;
+	}
+	.hl-rect.is-active-target {
+		outline: 2.5px solid var(--accent, #f59e0b) !important;
+		box-shadow: 0 0 16px rgba(245, 158, 11, 0.8) !important;
+		animation: pulse-hl 2.2s cubic-bezier(0.22, 1, 0.36, 1);
+		z-index: 5;
+	}
+	@keyframes pulse-hl {
+		0% {
+			transform: scale(1.05);
+			box-shadow: 0 0 24px rgba(245, 158, 11, 1);
+		}
+		50% {
+			transform: scale(1);
+			box-shadow: 0 0 14px rgba(245, 158, 11, 0.6);
+		}
+		100% {
+			transform: scale(1);
+			box-shadow: none;
+		}
 	}
 	:global(.dark) .hl-rect {
 		mix-blend-mode: normal;
