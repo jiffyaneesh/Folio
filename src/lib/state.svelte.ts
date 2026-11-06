@@ -25,6 +25,7 @@ class AppState {
 	loading = $state(false);
 	zen = $state(false);
 	theme = $state<'light' | 'dark'>('dark');
+	spreadMode = $state<'single' | 'double'>('single');
 	targetHighlightId = $state<string | null>(null);
 
 	pulseHighlight(id: string) {
@@ -34,6 +35,22 @@ class AppState {
 				this.targetHighlightId = null;
 			}
 		}, 2500);
+	}
+
+	toggleSpreadMode() {
+		this.spreadMode = this.spreadMode === 'single' ? 'double' : 'single';
+		try {
+			localStorage.setItem('folio-spread-mode', this.spreadMode);
+		} catch {}
+	}
+
+	initSpreadMode() {
+		try {
+			const saved = localStorage.getItem('folio-spread-mode') as 'single' | 'double' | null;
+			if (saved === 'single' || saved === 'double') {
+				this.spreadMode = saved;
+			}
+		} catch {}
 	}
 
 	get progress(): number {

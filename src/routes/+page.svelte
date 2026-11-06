@@ -137,6 +137,7 @@
 
 	onMount(() => {
 		app.initTheme();
+		app.initSpreadMode();
 		const tick = setInterval(() => (now = Date.now()), 30_000);
 		const persist = setInterval(() => view === 'reader' && persistProgress(), 15_000);
 		const onLeave = () => persistProgress();
@@ -147,6 +148,9 @@
 			} else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b' && view === 'reader') {
 				e.preventDefault();
 				handleToggleBookmark();
+			} else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd' && view === 'reader') {
+				e.preventDefault();
+				app.toggleSpreadMode();
 			} else if (e.key.toLowerCase() === 'z' && view === 'reader' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
 				e.preventDefault();
 				app.zen = !app.zen;
@@ -253,6 +257,15 @@
 					</button>
 					<button class="icon" onclick={() => goto(app.currentPage)} aria-label="Recenter" title="Recenter page">
 						<Icon name="filter_center_focus" />
+					</button>
+					<button
+						class="icon"
+						class:active={app.spreadMode === 'double'}
+						onclick={() => app.toggleSpreadMode()}
+						aria-label={app.spreadMode === 'double' ? 'Switch to single page view' : 'Switch to two-page spread view'}
+						title={app.spreadMode === 'double' ? 'Single page layout (D)' : 'Two-page spread layout (D)'}
+					>
+						<Icon name={app.spreadMode === 'double' ? 'menu_book' : 'description'} />
 					</button>
 					<button
 						class="icon"

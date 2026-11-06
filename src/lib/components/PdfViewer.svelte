@@ -23,6 +23,25 @@
 	let selectionBtn = $state<{ x: number; y: number } | null>(null);
 	let pendingSel: { page: number; text: string; rects: HighlightRect[] } | null = null;
 
+	let spreads = $derived.by(() => {
+		if (!doc) return [];
+		const list: number[][] = [];
+		if (app.spreadMode === 'double') {
+			for (let p = 1; p <= doc.numPages; p += 2) {
+				if (p + 1 <= doc.numPages) {
+					list.push([p, p + 1]);
+				} else {
+					list.push([p]);
+				}
+			}
+		} else {
+			for (let p = 1; p <= doc.numPages; p++) {
+				list.push([p]);
+			}
+		}
+		return list;
+	});
+
 	const highlightColors = [
 		{ label: 'Amber', color: 'rgba(245, 158, 11, 0.35)', dot: '#f59e0b' },
 		{ label: 'Blue', color: 'rgba(59, 130, 246, 0.35)', dot: '#3b82f6' },
@@ -40,10 +59,16 @@
 	function findCurrentPage(): number {
 		if (!scrollEl || !doc || doc.numPages === 0) return 1;
 		const targetY = scrollEl.scrollTop + scrollEl.clientHeight * 0.35;
-		const pageHeight = Math.round(colWidth * documentAspect) + 24;
-		if (pageHeight > 24) {
-			const estimated = Math.floor(targetY / pageHeight) + 1;
-			return Math.min(Math.max(1, estimated), doc.numPages);
+		const rowHeight = Math.round(colWidth * documentAspect) + 24;
+		if (rowHeight > 24) {
+			if (app.spreadMode === 'double') {
+				const estimatedRow = Math.floor(targetY / rowHeight);
+				const estimated = estimatedRow * 2 + 1;
+				return Math.min(Math.max(1, estimated), doc.numPages);
+			} else {
+				const estimated = Math.floor(targetY / rowHeight) + 1;
+				return Math.min(Math.max(1, estimated), doc.numPages);
+			}
 		}
 		return 1;
 	}
@@ -54,20 +79,34 @@
 			return;
 		}
 		lastBunchCenter = centerPage;
-		const start = Math.max(1, centerPage - BUNCH_SIZE);
-		const end = Math.min(doc.numPages, centerPage + BUNCH_SIZE);
 
 		const next = new Set<number>();
-		for (let p = start; p <= end; p++) {
-			next.add(p);
+		if (app.spreadMode === 'double') {
+			const centerSpread = Math.floor((centerPage - 1) / 2);
+			const startSpread = Math.max(0, centerSpread - BUNCH_SIZE);
+			const maxSpread = Math.floor((doc.numPages - 1) / 2);
+			const endSpread = Math.min(maxSpread, centerSpread + BUNCH_SIZE);
+			for (let s = startSpread; s <= endSpread; s++) {
+				const p1 = s * 2 + 1;
+				const p2 = s * 2 + 2;
+				next.add(p1);
+				if (p2 <= doc.numPages) next.add(p2);
+			}
+		} else {
+			const start = Math.max(1, centerPage - BUNCH_SIZE);
+			const end = Math.min(doc.numPages, centerPage + BUNCH_SIZE);
+			for (let p = start; p <= end; p++) {
+				next.add(p);
+			}
 		}
 		visiblePages = next;
 	}
 
 	function scrollTargetIntoView(target: number, behavior: ScrollBehavior) {
 		if (!scrollEl || !doc) return;
-		const pageHeight = Math.round(colWidth * documentAspect) + 24;
-		const targetTop = Math.max(0, (target - 1) * pageHeight);
+		const rowHeight = Math.round(colWidth * documentAspect) + 24;
+		const rowIndex = app.spreadMode === 'double' ? Math.floor((target - 1) / 2) : target - 1;
+		const targetTop = Math.max(0, rowIndex * rowHeight);
 		scrollEl.scrollTo({ top: targetTop, behavior });
 	}
 
@@ -186,31 +225,47 @@
 
 	function onKey(e: KeyboardEvent) {
 		if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
+		const step = app.spreadMode === 'double' ? 2 : 1;
 		if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === 'j')
-			goTo(app.currentPage + 1);
+			goTo(app.currentPage + step);
 		else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || e.key === 'k')
-			goTo(app.currentPage - 1);
+			goTo(app.currentPage - step);
 		else if (e.key === '+' || e.key === '=') app.zoom = Math.min(3, app.zoom + 0.1);
 		else if (e.key === '-') app.zoom = Math.max(0.5, app.zoom - 0.1);
 		else if (e.key === '0') app.zoom = 1;
 		else if (e.key.toLowerCase() === 'z') app.zen = !app.zen;
+		else if (e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey) app.toggleSpreadMode();
 		else return;
 		e.preventDefault();
 	}
 
 	let lastAvailWidth = 0;
+	let lastSpreadMode = '';
 	function measureWidth() {
 		if (!scrollEl) return;
-		const avail = Math.floor(scrollEl.clientWidth - 48);
-		if (Math.abs(avail - lastAvailWidth) > 2) {
+		const isDouble = app.spreadMode === 'double';
+		const totalAvail = scrollEl.clientWidth;
+		const avail = isDouble
+			? Math.floor((totalAvail - 64) / 2)
+			: Math.floor(totalAvail - 48);
+
+		if (Math.abs(avail - lastAvailWidth) > 2 || lastSpreadMode !== app.spreadMode) {
 			lastAvailWidth = avail;
-			colWidth = Math.min(900, Math.max(280, avail)) * app.zoom;
+			lastSpreadMode = app.spreadMode;
+			const maxW = isDouble ? 800 : 900;
+			const minW = isDouble ? 240 : 280;
+			colWidth = Math.min(maxW, Math.max(minW, avail)) * app.zoom;
 		}
 	}
 
 	$effect(() => {
 		app.zoom;
+		app.spreadMode;
 		measureWidth();
+		updateBunch(app.currentPage, true);
+		requestAnimationFrame(() => {
+			scrollTargetIntoView(app.currentPage, 'auto');
+		});
 	});
 
 	// Build search index lazily on first open
@@ -259,18 +314,24 @@
 	aria-label="PDF Document Pages"
 >
 	{#if doc}
-		{#each { length: doc.numPages } as _, i (i)}
-			<PdfPage
-				{doc}
-				pageNumber={i + 1}
-				scale={app.zoom}
-				width={colWidth}
-				initialAspect={documentAspect}
-				visible={visiblePages.has(i + 1)}
-				priority={Math.abs(i + 1 - app.currentPage) <= 2}
-				{highlights}
-			/>
-		{/each}
+		<div class="spread-container" class:double={app.spreadMode === 'double'}>
+			{#each spreads as spread, sIdx (sIdx)}
+				<div class="spread-row">
+					{#each spread as pageNum (pageNum)}
+						<PdfPage
+							{doc}
+							pageNumber={pageNum}
+							scale={app.zoom}
+							width={colWidth}
+							initialAspect={documentAspect}
+							visible={visiblePages.has(pageNum)}
+							priority={Math.abs(pageNum - app.currentPage) <= (app.spreadMode === 'double' ? 3 : 2)}
+							{highlights}
+						/>
+					{/each}
+				</div>
+			{/each}
+		</div>
 	{/if}
 
 	<SearchPanel ongoto={(p) => goTo(p)} />
@@ -312,6 +373,22 @@
 		position: relative;
 		background: var(--reader-bg);
 		outline: none;
+	}
+	.spread-container {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		width: 100%;
+	}
+	.spread-row {
+		display: flex;
+		justify-content: center;
+		align-items: flex-start;
+		gap: 16px;
+		margin-bottom: 24px;
+	}
+	.spread-row :global(.pdf-page) {
+		margin: 0;
 	}
 	.hl-palette {
 		position: absolute;
