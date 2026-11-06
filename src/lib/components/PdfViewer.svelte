@@ -5,6 +5,8 @@
 	import { search } from '../search.svelte';
 	import PdfPage from './PdfPage.svelte';
 	import SearchPanel from './SearchPanel.svelte';
+	import TtsPlayer from './TtsPlayer.svelte';
+	import { tts } from '../tts.svelte';
 	import type { HighlightRecord, HighlightRect } from '../types';
 
 	interface Props {
@@ -231,7 +233,16 @@
 		};
 	});
 
+	export function toggleTts() {
+		tts.toggle(doc, app.currentPage, (p) => goTo(p));
+	}
+
+	export function getDoc(): PDFDocumentProxy | null {
+		return doc;
+	}
+
 	onDestroy(() => {
+		tts.stop();
 		(doc as unknown as { destroy?: () => void })?.destroy?.();
 	});
 </script>
@@ -262,6 +273,7 @@
 	{/if}
 
 	<SearchPanel ongoto={(p) => goTo(p)} />
+	<TtsPlayer {doc} ongoto={(p) => goTo(p)} />
 
 	{#if selectionBtn}
 		<div

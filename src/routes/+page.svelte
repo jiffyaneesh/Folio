@@ -10,6 +10,7 @@
 		toggleBookmark
 	} from '$lib/state.svelte';
 	import { search } from '$lib/search.svelte';
+	import { tts } from '$lib/tts.svelte';
 	import { isDue } from '$lib/sm2';
 	import type PdfViewer from '$lib/components/PdfViewer.svelte';
 	import type DetailsPanel from '$lib/components/DetailsPanel.svelte';
@@ -110,6 +111,7 @@
 	});
 
 	function backToLibrary() {
+		tts.stop();
 		persistProgress();
 		search.reset();
 		app.reset();
@@ -240,6 +242,17 @@
 						title="Search (⌘F)"
 					>
 						<span class="material-symbols-outlined">search</span>
+					</button>
+					<button
+						class="icon"
+						class:active={tts.active}
+						onclick={() => viewer?.toggleTts()}
+						aria-label={tts.isPlaying ? 'Audio reader active' : 'Read page aloud'}
+						title={tts.isPlaying ? 'Audio Reader Active' : 'Read Page Aloud (TTS)'}
+					>
+						<span class="material-symbols-outlined">
+							{tts.isPlaying && !tts.isPaused ? 'volume_up' : 'volume_mute'}
+						</span>
 					</button>
 					<button class="icon" onclick={() => goto(app.currentPage)} aria-label="Recenter" title="Recenter page">
 						<span class="material-symbols-outlined">filter_center_focus</span>
