@@ -26,6 +26,15 @@
 		{ id: 'outline', label: 'Outline' }
 	];
 
+	let outlineFilter = $state('');
+	const filteredOutline = $derived(
+		outlineFilter.trim()
+			? app.outline.filter((item) =>
+					item.title.toLowerCase().includes(outlineFilter.toLowerCase().trim())
+				)
+			: app.outline
+	);
+
 	const counts = $derived<Record<Tab, number>>({
 		notes: notes.length,
 		highlights: highlights.length,
@@ -444,13 +453,39 @@ tags:
 				</div>
 			{/each}
 		{:else}
+			{#if app.outline.length > 5}
+				<div class="outline-filter-box">
+					<Icon name="search" class="o-filter-icon" />
+					<input
+						type="search"
+						class="outline-filter-input"
+						placeholder="Search chapters & sections…"
+						bind:value={outlineFilter}
+					/>
+					{#if outlineFilter}
+						<button
+							class="o-filter-clear"
+							onclick={() => (outlineFilter = '')}
+							aria-label="Clear outline search"
+						>
+							<Icon name="close" />
+						</button>
+					{/if}
+				</div>
+			{/if}
+
 			{#if app.outline.length === 0}
 				<div class="empty">
 					<Icon name="toc" />
 					<p>This document has no embedded outline.</p>
 				</div>
+			{:else if filteredOutline.length === 0}
+				<div class="empty">
+					<Icon name="search" />
+					<p>No outline items match "{outlineFilter}"</p>
+				</div>
 			{/if}
-			{#each app.outline as item, i (i)}
+			{#each filteredOutline as item, i (i)}
 				<div
 					class="outline-row"
 					data-page={item.page}
@@ -815,6 +850,51 @@ tags:
 	}
 	.linked :global(.material-symbols-outlined) {
 		font-size: 12px;
+	}
+	.outline-filter-box {
+		position: relative;
+		display: flex;
+		align-items: center;
+		margin: 0 4px 10px;
+		background: var(--muted);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm, 6px);
+		padding: 4px 8px;
+		gap: 6px;
+	}
+	:global(.o-filter-icon) {
+		font-size: 14px;
+		color: var(--muted-foreground);
+		flex-shrink: 0;
+	}
+	.outline-filter-input {
+		flex: 1;
+		background: transparent;
+		border: none;
+		outline: none;
+		font-size: 12px;
+		color: var(--foreground);
+		min-width: 0;
+	}
+	.outline-filter-input::placeholder {
+		color: var(--muted-foreground);
+	}
+	.o-filter-clear {
+		background: none;
+		border: none;
+		padding: 2px;
+		color: var(--muted-foreground);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 4px;
+	}
+	.o-filter-clear:hover {
+		color: var(--foreground);
+	}
+	.o-filter-clear :global(.material-symbols-outlined) {
+		font-size: 13px;
 	}
 	.outline-row {
 		display: flex;
