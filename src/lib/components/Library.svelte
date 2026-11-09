@@ -15,10 +15,47 @@
 	let docs = $state<DocumentRecord[]>([]);
 	let dragging = $state(false);
 	let fileInput = $state<HTMLInputElement | null>(null);
+	let searchQuery = $state('');
+	let sortBy = $state<'recent' | 'name' | 'progress' | 'pages'>('recent');
+	let storageUsage = $state<string | null>(null);
 
 	const q = recentDocsQuery();
 	const sub = q.subscribe((v) => (docs = v));
 	$effect(() => () => sub.unsubscribe());
+
+	$effect(() => {
+		if (typeof navigator !== 'undefined' && navigator.storage?.estimate) {
+			navigator.storage
+				.estimate()
+				.then((est) => {
+					if (est.usage) {
+						const mb = (est.usage / (1024 * 1024)).toFixed(1);
+						storageUsage = `${mb} MB`;
+					}
+				})
+				.catch(() => {});
+		}
+	});
+
+	const filteredDocs = $derived.by(() => {
+		let list = docs;
+		if (searchQuery.trim()) {
+			const query = searchQuery.toLowerCase().trim();
+			list = list.filter((d) => d.name.toLowerCase().includes(query));
+		}
+		return [...list].sort((a, b) => {
+			if (sortBy === 'name') return a.name.localeCompare(b.name);
+			if (sortBy === 'progress') {
+				const progA = a.totalPages ? a.lastPage / a.totalPages : 0;
+				const progB = b.totalPages ? b.lastPage / b.totalPages : 0;
+				return progB - progA;
+			}
+			if (sortBy === 'pages') {
+				return (b.totalPages || 0) - (a.totalPages || 0);
+			}
+			return b.lastOpenedAt - a.lastOpenedAt;
+		});
+	});
 
 	async function pick(files: FileList | null) {
 		const file = files?.[0];
@@ -155,31 +192,89 @@
 
 	{#if docs.length}
 		<div class="recents">
-			<h2>Recent Documents</h2>
-			<div class="grid">
-				{#each docs as d (d.id)}
-					<div
-						class="doc"
-						role="button"
-						tabindex="0"
-						onclick={() => reopen(d)}
-						onkeydown={(e) => e.key === 'Enter' && reopen(d)}
-					>
-						<div class="doc-thumb">
-							<Icon name="description" />
-							<button class="del" onclick={(e) => remove(e, d)} aria-label={`Delete ${d.name}`}>
-								<Icon name="delete" />
+			<div class="recents-header">
+				<div class="recents-title-row">
+					<h2>Recent Documents</h2>
+					<span class="doc-count-badge">{docs.length}</span>
+				</div>
+
+				<div class="recents-tools">
+					<div class="lib-search">
+						<Icon name="search" class="lib-search-icon" />
+						<input
+							type="search"
+							placeholder="Search library…"
+							bind:value={searchQuery}
+							class="lib-search-input"
+						/>
+						{#if searchQuery}
+							<button
+								class="lib-search-clear"
+								onclick={() => (searchQuery = '')}
+								aria-label="Clear search"
+							>
+								<Icon name="close" />
 							</button>
-						</div>
-						<div class="doc-meta">
-							<span class="doc-name">{d.name}</span>
-							<span class="doc-sub">
-								{d.totalPages ? `Page ${d.lastPage}/${d.totalPages} · ` : ''}{relTime(d.lastOpenedAt)}
-							</span>
-						</div>
+						{/if}
 					</div>
-				{/each}
+
+					<div class="sort-wrap">
+						<select bind:value={sortBy} class="sort-select" aria-label="Sort documents">
+							<option value="recent">Recent</option>
+							<option value="name">Name (A–Z)</option>
+							<option value="progress">Progress</option>
+							<option value="pages">Length</option>
+						</select>
+					</div>
+				</div>
 			</div>
+
+			{#if filteredDocs.length === 0}
+				<div class="empty-search">
+					<Icon name="search" />
+					<p>No documents match "{searchQuery}"</p>
+					<button class="clear-btn" onclick={() => (searchQuery = '')}>Clear filter</button>
+				</div>
+			{:else}
+				<div class="grid">
+					{#each filteredDocs as d (d.id)}
+						<div
+							class="doc"
+							role="button"
+							tabindex="0"
+							onclick={() => reopen(d)}
+							onkeydown={(e) => e.key === 'Enter' && reopen(d)}
+						>
+							<div class="doc-thumb">
+								<Icon name="description" />
+								{#if d.totalPages && d.lastPage}
+									<div class="card-prog-bar">
+										<div
+											class="card-prog-fill"
+											style="width:{Math.min(100, Math.round((d.lastPage / d.totalPages) * 100))}%"
+										></div>
+									</div>
+								{/if}
+								<button class="del" onclick={(e) => remove(e, d)} aria-label={`Delete ${d.name}`}>
+									<Icon name="delete" />
+								</button>
+							</div>
+							<div class="doc-meta">
+								<span class="doc-name">{d.name}</span>
+								<div class="doc-sub-row">
+									<span class="doc-sub">
+										{d.totalPages ? `Pg ${d.lastPage}/${d.totalPages}` : ''}
+									</span>
+									{#if d.totalPages}
+										<span class="doc-dot">·</span>
+									{/if}
+									<span class="doc-sub">{relTime(d.lastOpenedAt)}</span>
+								</div>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
 		</div>
 	{/if}
 
@@ -193,7 +288,7 @@
 	{/if}
 
 	<footer class="foot">
-		<span>100% local</span>
+		<span>100% local{#if storageUsage} ({storageUsage}){/if}</span>
 		<span class="dot">·</span>
 		<span>no tracking</span>
 		<span class="dot">·</span>
@@ -442,13 +537,172 @@
 		margin-top: 48px;
 		z-index: 1;
 	}
+	.recents-header {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 16px;
+	}
+	.recents-title-row {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
 	.recents h2 {
 		font-size: 12px;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
 		color: var(--muted-foreground);
-		margin: 0 0 16px;
-		font-weight: 500;
+		margin: 0;
+		font-weight: 600;
+	}
+	.doc-count-badge {
+		background: var(--muted);
+		color: var(--muted-foreground);
+		font-size: 11px;
+		font-family: ui-monospace, 'JetBrains Mono', monospace;
+		padding: 2px 7px;
+		border-radius: 10px;
+		border: 1px solid var(--border);
+	}
+	.recents-tools {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+	}
+	.lib-search {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		background: var(--card);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm, 6px);
+		padding: 4px 8px;
+		box-shadow: var(--shadow-subtle);
+		width: 180px;
+		transition: border-color 0.15s ease, width 0.15s ease;
+	}
+	.lib-search:focus-within {
+		border-color: var(--accent);
+		width: 220px;
+	}
+	:global(.lib-search-icon) {
+		font-size: 14px;
+		color: var(--muted-foreground);
+		flex-shrink: 0;
+	}
+	.lib-search-input {
+		background: transparent;
+		border: none;
+		outline: none;
+		font-size: 12px;
+		color: var(--foreground);
+		width: 100%;
+		min-width: 0;
+	}
+	.lib-search-input::placeholder {
+		color: var(--muted-foreground);
+	}
+	.lib-search-clear {
+		background: none;
+		border: none;
+		padding: 0;
+		color: var(--muted-foreground);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.lib-search-clear:hover {
+		color: var(--foreground);
+	}
+	.lib-search-clear :global(.material-symbols-outlined) {
+		font-size: 13px;
+	}
+	.sort-wrap {
+		position: relative;
+	}
+	.sort-select {
+		background: var(--card);
+		color: var(--muted-foreground);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm, 6px);
+		padding: 4px 8px;
+		font-size: 11.5px;
+		font-family: inherit;
+		cursor: pointer;
+		outline: none;
+		box-shadow: var(--shadow-subtle);
+		transition: border-color 0.15s ease, color 0.15s ease;
+	}
+	.sort-select:hover,
+	.sort-select:focus {
+		border-color: var(--accent);
+		color: var(--foreground);
+	}
+	.empty-search {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		padding: 48px 0;
+		color: var(--muted-foreground);
+		text-align: center;
+	}
+	.empty-search :global(.material-symbols-outlined) {
+		font-size: 32px;
+		opacity: 0.5;
+	}
+	.empty-search p {
+		margin: 0;
+		font-size: 13.5px;
+	}
+	.clear-btn {
+		background: var(--muted);
+		color: var(--foreground);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm, 6px);
+		padding: 5px 12px;
+		font-size: 12px;
+		cursor: pointer;
+		margin-top: 4px;
+		transition: background 0.12s ease;
+	}
+	.clear-btn:hover {
+		background: var(--accent);
+		color: var(--accent-foreground, #000);
+	}
+	.card-prog-bar {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		height: 3px;
+		background: rgba(0, 0, 0, 0.08);
+		border-bottom-left-radius: var(--radius, 10px);
+		border-bottom-right-radius: var(--radius, 10px);
+		overflow: hidden;
+	}
+	.card-prog-fill {
+		height: 100%;
+		background: var(--accent);
+		transition: width 0.2s ease;
+	}
+	.doc-sub-row {
+		display: flex;
+		align-items: baseline;
+		gap: 4px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.doc-dot {
+		font-size: 10px;
+		color: var(--muted-foreground);
+		opacity: 0.6;
 	}
 	.grid {
 		display: grid;
