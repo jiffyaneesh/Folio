@@ -24,29 +24,10 @@ export default defineConfig({
 				]
 			},
 			workbox: {
-				globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2,mjs}'],
+				globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,webmanifest,mjs}'],
 				maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
 				cleanupOutdatedCaches: true,
-				navigateFallback: '/',
-				runtimeCaching: [
-					{
-						urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-						handler: 'CacheFirst',
-						options: {
-							cacheName: 'google-fonts-stylesheets',
-							expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 }
-						}
-					},
-					{
-						urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-						handler: 'CacheFirst',
-						options: {
-							cacheName: 'google-fonts-webfonts',
-							expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
-							cacheableResponse: { statuses: [0, 200] }
-						}
-					}
-				]
+				navigateFallback: '/'
 			},
 			devOptions: { enabled: false }
 		})

@@ -69,6 +69,30 @@
 		onopen();
 	}
 
+	let editingId = $state<string | null>(null);
+	let editName = $state('');
+
+	function startRename(e: MouseEvent, d: DocumentRecord) {
+		e.stopPropagation();
+		editingId = d.id;
+		editName = d.name;
+	}
+
+	async function commitRename(d: DocumentRecord) {
+		if (editingId !== d.id) return;
+		const cleanName = editName.replace(/[\x00-\x1f\x7f]/g, '').trim();
+		if (cleanName && cleanName !== d.name) {
+			await db.documents.update(d.id, { name: cleanName.slice(0, 150) });
+		}
+		editingId = null;
+		editName = '';
+	}
+
+	function cancelRename() {
+		editingId = null;
+		editName = '';
+	}
+
 	async function remove(e: MouseEvent, d: DocumentRecord) {
 		e.stopPropagation();
 		await db.transaction(
@@ -255,21 +279,76 @@
 										></div>
 									</div>
 								{/if}
-								<button class="del" onclick={(e) => remove(e, d)} aria-label={`Delete ${d.name}`}>
-									<Icon name="delete" />
-								</button>
+								<div class="card-actions">
+									<button
+										class="card-act-btn edit-btn"
+										onclick={(e) => startRename(e, d)}
+										aria-label={`Rename ${d.name}`}
+										title="Rename document"
+									>
+										<Icon name="edit" />
+									</button>
+									<button
+										class="card-act-btn del-btn"
+										onclick={(e) => remove(e, d)}
+										aria-label={`Delete ${d.name}`}
+										title="Delete document"
+									>
+										<Icon name="delete" />
+									</button>
+								</div>
 							</div>
 							<div class="doc-meta">
-								<span class="doc-name">{d.name}</span>
-								<div class="doc-sub-row">
-									<span class="doc-sub">
-										{d.totalPages ? `Pg ${d.lastPage}/${d.totalPages}` : ''}
-									</span>
-									{#if d.totalPages}
-										<span class="doc-dot">·</span>
-									{/if}
-									<span class="doc-sub">{relTime(d.lastOpenedAt)}</span>
-								</div>
+								{#if editingId === d.id}
+									<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+									<div
+										class="rename-wrap"
+										onclick={(e) => e.stopPropagation()}
+										onkeydown={(e) => e.stopPropagation()}
+										role="group"
+										aria-label="Rename document"
+									>
+										<!-- svelte-ignore a11y_autofocus -->
+										<input
+											type="text"
+											class="rename-input"
+											bind:value={editName}
+											autofocus
+											maxlength="150"
+											onkeydown={(e) => {
+												if (e.key === 'Enter') commitRename(d);
+												else if (e.key === 'Escape') cancelRename();
+											}}
+										/>
+										<button
+											class="rename-save"
+											onclick={() => commitRename(d)}
+											aria-label="Save name"
+											title="Save (Enter)"
+										>
+											<Icon name="check" />
+										</button>
+										<button
+											class="rename-cancel"
+											onclick={cancelRename}
+											aria-label="Cancel rename"
+											title="Cancel (Esc)"
+										>
+											<Icon name="close" />
+										</button>
+									</div>
+								{:else}
+									<span class="doc-name" title={d.name}>{d.name}</span>
+									<div class="doc-sub-row">
+										<span class="doc-sub">
+											{d.totalPages ? `Pg ${d.lastPage}/${d.totalPages}` : ''}
+										</span>
+										{#if d.totalPages}
+											<span class="doc-dot">·</span>
+										{/if}
+										<span class="doc-sub">{relTime(d.lastOpenedAt)}</span>
+									</div>
+								{/if}
 							</div>
 						</div>
 					{/each}
@@ -741,32 +820,44 @@
 		color: var(--muted-foreground);
 		opacity: 0.5;
 	}
-	.del {
+	.card-actions {
 		position: absolute;
 		top: 6px;
 		right: 6px;
+		display: none;
+		align-items: center;
+		gap: 4px;
+		z-index: 2;
+	}
+	.doc:hover .card-actions {
+		display: flex;
+	}
+	.card-act-btn {
 		width: 26px;
 		height: 26px;
 		border-radius: var(--radius-sm, 6px);
 		background: var(--card);
 		border: 1px solid var(--border);
 		color: var(--muted-foreground);
-		display: none;
+		display: flex;
 		align-items: center;
 		justify-content: center;
 		cursor: pointer;
 		transition: all 0.15s ease;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 	}
-	.doc:hover .del {
-		display: flex;
+	.card-act-btn:hover {
+		color: var(--foreground);
+		border-color: var(--accent);
+		transform: scale(1.05);
 	}
-	.del:hover {
+	.card-act-btn.del-btn:hover {
 		background: var(--destructive);
 		color: #ffffff;
 		border-color: var(--destructive);
 	}
-	.del :global(.material-symbols-outlined) {
-		font-size: 15px;
+	.card-act-btn :global(.material-symbols-outlined) {
+		font-size: 14px;
 		opacity: 1;
 	}
 	.doc-meta {
@@ -774,6 +865,52 @@
 		flex-direction: column;
 		gap: 2px;
 		padding: 0 2px;
+		min-height: 38px;
+	}
+	.rename-wrap {
+		display: flex;
+		align-items: center;
+		gap: 3px;
+		width: 100%;
+		margin-top: 1px;
+	}
+	.rename-input {
+		flex: 1;
+		min-width: 0;
+		background: var(--card);
+		border: 1.5px solid var(--accent);
+		color: var(--foreground);
+		border-radius: var(--radius-sm, 5px);
+		padding: 3px 6px;
+		font-size: 12px;
+		font-family: inherit;
+		outline: none;
+	}
+	.rename-save,
+	.rename-cancel {
+		background: var(--muted);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm, 5px);
+		color: var(--muted-foreground);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 3px;
+		transition: all 0.12s ease;
+		flex-shrink: 0;
+	}
+	.rename-save:hover {
+		background: var(--accent);
+		color: var(--accent-foreground, #000);
+	}
+	.rename-cancel:hover {
+		background: var(--destructive);
+		color: #ffffff;
+	}
+	.rename-save :global(.material-symbols-outlined),
+	.rename-cancel :global(.material-symbols-outlined) {
+		font-size: 13px;
 	}
 	.doc-name {
 		font-size: 13px;
@@ -817,7 +954,7 @@
 		color: var(--accent);
 	}
 	@media (hover: none) {
-		.del {
+		.card-actions {
 			display: flex;
 		}
 	}
