@@ -23,6 +23,7 @@
 			title: 'Reading & Layout',
 			shortcuts: [
 				{ keys: ['D'], desc: 'Toggle single / two-page spread' },
+				{ keys: ['W'], desc: 'Toggle Fit to Width / Fit to Page' },
 				{ keys: ['P'], desc: 'Cycle paper: Normal / Sepia / Inverted' },
 				{ keys: ['Z'], desc: 'Zen focus mode (fullscreen)' },
 				{ keys: ['+', '−'], desc: 'Zoom in / Zoom out' },

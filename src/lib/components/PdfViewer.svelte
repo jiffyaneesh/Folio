@@ -230,36 +230,40 @@
 			goTo(app.currentPage + step);
 		else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || e.key === 'k')
 			goTo(app.currentPage - step);
-		else if (e.key === '+' || e.key === '=') app.zoom = Math.min(3, app.zoom + 0.1);
-		else if (e.key === '-') app.zoom = Math.max(0.5, app.zoom - 0.1);
-		else if (e.key === '0') app.zoom = 1;
+		else if (e.key === '+' || e.key === '=') app.zoomIn();
+		else if (e.key === '-') app.zoomOut();
+		else if (e.key === '0') app.resetZoom();
+		else if (e.key.toLowerCase() === 'w') app.cycleZoomMode();
 		else if (e.key.toLowerCase() === 'z') app.zen = !app.zen;
 		else if (e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey) app.toggleSpreadMode();
 		else return;
 		e.preventDefault();
 	}
 
-	let lastAvailWidth = 0;
-	let lastSpreadMode = '';
 	function measureWidth() {
 		if (!scrollEl) return;
 		const isDouble = app.spreadMode === 'double';
-		const totalAvail = scrollEl.clientWidth;
-		const avail = isDouble
-			? Math.floor((totalAvail - 64) / 2)
-			: Math.floor(totalAvail - 48);
+		const totalAvailW = scrollEl.clientWidth;
+		const totalAvailH = scrollEl.clientHeight;
+		const availW = isDouble
+			? Math.floor((totalAvailW - 64) / 2)
+			: Math.floor(totalAvailW - 48);
 
-		if (Math.abs(avail - lastAvailWidth) > 2 || lastSpreadMode !== app.spreadMode) {
-			lastAvailWidth = avail;
-			lastSpreadMode = app.spreadMode;
-			const maxW = isDouble ? 800 : 900;
-			const minW = isDouble ? 240 : 280;
-			colWidth = Math.min(maxW, Math.max(minW, avail)) * app.zoom;
+		if (app.zoomMode === 'fit-width') {
+			colWidth = Math.max(240, availW);
+		} else if (app.zoomMode === 'fit-page') {
+			const availH = Math.max(300, totalAvailH - 120);
+			const heightConstrainedW = Math.floor(availH / documentAspect);
+			colWidth = Math.max(240, Math.min(availW, heightConstrainedW));
+		} else {
+			const baseW = Math.min(isDouble ? 800 : 900, Math.max(240, availW));
+			colWidth = Math.round(baseW * app.zoom);
 		}
 	}
 
 	$effect(() => {
 		app.zoom;
+		app.zoomMode;
 		app.spreadMode;
 		measureWidth();
 		updateBunch(app.currentPage, true);

@@ -160,6 +160,9 @@
 			} else if (e.key.toLowerCase() === 'p' && view === 'reader' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
 				e.preventDefault();
 				app.cyclePaperMode();
+			} else if (e.key.toLowerCase() === 'w' && view === 'reader' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+				e.preventDefault();
+				app.cycleZoomMode();
 			} else if (e.key.toLowerCase() === 't' && view === 'reader' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
 				e.preventDefault();
 				viewer?.toggleTts();
@@ -198,11 +201,24 @@
 						<Icon name="grid_view" />
 					</button>
 					<div class="zoom" role="group" aria-label="Zoom controls">
-						<button class="zbtn" onclick={() => (app.zoom = Math.max(0.5, app.zoom - 0.1))} aria-label="Zoom out">
+						<button class="zbtn" onclick={() => app.zoomOut()} aria-label="Zoom out" title="Zoom out (-)">
 							<Icon name="remove" />
 						</button>
-						<span class="zlevel">{Math.round(app.zoom * 100)}%</span>
-						<button class="zbtn" onclick={() => (app.zoom = Math.min(3, app.zoom + 0.1))} aria-label="Zoom in">
+						<button
+							class="zlevel-btn"
+							onclick={() => app.cycleZoomMode()}
+							title="Click to toggle Fit Width / Fit Page / 100% (W)"
+							aria-label="Toggle zoom fit mode"
+						>
+							{#if app.zoomMode === 'fit-width'}
+								Fit W
+							{:else if app.zoomMode === 'fit-page'}
+								Fit Page
+							{:else}
+								{Math.round(app.zoom * 100)}%
+							{/if}
+						</button>
+						<button class="zbtn" onclick={() => app.zoomIn()} aria-label="Zoom in" title="Zoom in (+)">
 							<Icon name="add" />
 						</button>
 					</div>
@@ -597,12 +613,23 @@
 	.zbtn :global(.material-symbols-outlined) {
 		font-size: 16px;
 	}
-	.zlevel {
+	.zlevel-btn {
+		background: none;
+		border: none;
 		font-family: ui-monospace, 'JetBrains Mono', monospace;
 		font-size: 11px;
 		color: var(--foreground);
-		min-width: 34px;
+		min-width: 44px;
 		text-align: center;
+		cursor: pointer;
+		padding: 2px 4px;
+		border-radius: 4px;
+		transition: background 0.12s ease, color 0.12s ease;
+		white-space: nowrap;
+	}
+	.zlevel-btn:hover {
+		background: var(--muted);
+		color: var(--accent);
 	}
 	.work {
 		flex: 1;
@@ -682,7 +709,7 @@
 		.center h1 {
 			max-width: 100%;
 		}
-		.zlevel {
+		.zlevel-btn {
 			display: none;
 		}
 		.zoom {

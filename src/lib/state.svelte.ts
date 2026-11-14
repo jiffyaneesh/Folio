@@ -19,6 +19,7 @@ class AppState {
 	totalPages = $state(0);
 	currentPage = $state(1);
 	zoom = $state(1);
+	zoomMode = $state<'auto' | 'fit-width' | 'fit-page'>('auto');
 	outline = $state<OutlineItem[]>([]);
 	activeTab = $state<Tab>('notes');
 	sessionStart = $state(0);
@@ -28,6 +29,32 @@ class AppState {
 	spreadMode = $state<'single' | 'double'>('single');
 	paperMode = $state<'normal' | 'sepia' | 'inverted'>('normal');
 	targetHighlightId = $state<string | null>(null);
+
+	zoomIn() {
+		this.zoomMode = 'auto';
+		this.zoom = Math.min(3, Math.round((this.zoom + 0.1) * 10) / 10);
+	}
+
+	zoomOut() {
+		this.zoomMode = 'auto';
+		this.zoom = Math.max(0.4, Math.round((this.zoom - 0.1) * 10) / 10);
+	}
+
+	resetZoom() {
+		this.zoomMode = 'auto';
+		this.zoom = 1;
+	}
+
+	cycleZoomMode() {
+		if (this.zoomMode === 'auto') {
+			this.zoomMode = 'fit-width';
+		} else if (this.zoomMode === 'fit-width') {
+			this.zoomMode = 'fit-page';
+		} else {
+			this.zoomMode = 'auto';
+			this.zoom = 1;
+		}
+	}
 
 	pulseHighlight(id: string) {
 		this.targetHighlightId = id;
