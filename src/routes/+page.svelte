@@ -15,6 +15,7 @@
 	import type PdfViewer from '$lib/components/PdfViewer.svelte';
 	import type DetailsPanel from '$lib/components/DetailsPanel.svelte';
 	import type ReviewMode from '$lib/components/ReviewMode.svelte';
+	import type { PDFDocumentProxy } from '$lib/pdf';
 	import Library from '$lib/components/Library.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import ShortcutsModal from '$lib/components/ShortcutsModal.svelte';
@@ -24,6 +25,7 @@
 	let reviewing = $state(false);
 	let shortcutsOpen = $state(false);
 	let viewer = $state<PdfViewer | null>(null);
+	let pdfDoc = $state<PDFDocumentProxy | null>(null);
 
 	let PdfViewerComp = $state<typeof PdfViewer | null>(null);
 	let DetailsPanelComp = $state<typeof DetailsPanel | null>(null);
@@ -118,6 +120,7 @@
 		persistProgress();
 		search.reset();
 		app.reset();
+		pdfDoc = null;
 		view = 'library';
 	}
 
@@ -344,7 +347,7 @@
 		<main class="work" class:zen={app.zen}>
 			<section class="pdf-col" class:full={app.zen}>
 				{#if app.pdfData}
-					<PdfViewerComp bind:this={viewer} {highlights} />
+					<PdfViewerComp bind:this={viewer} {highlights} onloaded={(d) => (pdfDoc = d)} />
 				{/if}
 			</section>
 
@@ -373,6 +376,7 @@
 						<span class="grabber"></span>
 					</button>
 					<DetailsPanelComp
+						doc={pdfDoc}
 						{notes}
 						{highlights}
 						{flashcards}

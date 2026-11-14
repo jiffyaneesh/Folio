@@ -3,9 +3,12 @@
 	import { relTime } from '../time';
 	import SessionTimer from './SessionTimer.svelte';
 	import Icon from './Icon.svelte';
+	import PdfThumbnail from './PdfThumbnail.svelte';
+	import type { PDFDocumentProxy } from '../pdf';
 	import type { NoteRecord, HighlightRecord, FlashcardRecord, BookmarkRecord, Tab } from '../types';
 
 	interface Props {
+		doc?: PDFDocumentProxy | null;
 		notes: NoteRecord[];
 		highlights: HighlightRecord[];
 		flashcards: FlashcardRecord[];
@@ -14,7 +17,16 @@
 		onreview: () => void;
 		ongoto: (page: number) => void;
 	}
-	let { notes, highlights, flashcards, bookmarks, dueCount, onreview, ongoto }: Props = $props();
+	let {
+		doc = null,
+		notes,
+		highlights,
+		flashcards,
+		bookmarks,
+		dueCount,
+		onreview,
+		ongoto
+	}: Props = $props();
 
 	let draft = $state('');
 	let replyTo = $state<HighlightRecord | null>(null);
@@ -23,7 +35,8 @@
 		{ id: 'notes', label: 'Notes' },
 		{ id: 'highlights', label: 'Highlights' },
 		{ id: 'bookmarks', label: 'Bookmarks' },
-		{ id: 'outline', label: 'Outline' }
+		{ id: 'outline', label: 'Outline' },
+		{ id: 'thumbnails', label: 'Pages' }
 	];
 
 	let outlineFilter = $state('');
@@ -39,7 +52,8 @@
 		notes: notes.length,
 		highlights: highlights.length,
 		bookmarks: bookmarks.length,
-		outline: app.outline.length
+		outline: app.outline.length,
+		thumbnails: app.totalPages
 	});
 
 	async function submit() {
@@ -452,7 +466,7 @@ tags:
 					<p class="body bm-text">{b.title || `Bookmarked Page ${b.page}`}</p>
 				</div>
 			{/each}
-		{:else}
+		{:else if app.activeTab === 'outline'}
 			{#if app.outline.length > 5}
 				<div class="outline-filter-box">
 					<Icon name="search" class="o-filter-icon" />
@@ -497,6 +511,26 @@ tags:
 					<span class="o-page">{item.page}</span>
 				</div>
 			{/each}
+		{:else}
+			{#if doc && app.totalPages > 0}
+				<div class="thumb-grid">
+					{#each { length: app.totalPages } as _, i (i + 1)}
+						<PdfThumbnail
+							{doc}
+							pageNumber={i + 1}
+							active={app.currentPage === i + 1}
+							bookmarked={bookmarks.some((b) => b.page === i + 1)}
+							aspect={1.4142}
+							onclick={() => ongoto(i + 1)}
+						/>
+					{/each}
+				</div>
+			{:else}
+				<div class="empty">
+					<Icon name="grid_view" />
+					<p>Visual thumbnails loading…</p>
+				</div>
+			{/if}
 		{/if}
 	</div>
 	{/key}
@@ -905,6 +939,12 @@ tags:
 		border-radius: var(--radius-sm, 6px);
 		cursor: pointer;
 		transition: background 0.12s ease;
+	}
+	.thumb-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+		gap: 12px;
+		padding: 4px 6px;
 	}
 	.outline-row:hover {
 		background: var(--muted);

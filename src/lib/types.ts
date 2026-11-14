@@ -1,5 +1,5 @@
 // Compile-time string-literal unions — erased at build, no runtime enum wrappers.
-export type Tab = 'notes' | 'highlights' | 'bookmarks' | 'outline';
+export type Tab = 'notes' | 'highlights' | 'bookmarks' | 'outline' | 'thumbnails';
 
 export interface DocumentRecord {
 	id: string; // content hash

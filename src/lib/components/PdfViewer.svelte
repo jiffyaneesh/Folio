@@ -12,8 +12,9 @@
 
 	interface Props {
 		highlights: HighlightRecord[];
+		onloaded?: (doc: PDFDocumentProxy) => void;
 	}
-	let { highlights }: Props = $props();
+	let { highlights, onloaded }: Props = $props();
 
 	let doc = $state<PDFDocumentProxy | null>(null);
 	let scrollEl = $state<HTMLDivElement | null>(null);
@@ -122,6 +123,8 @@
 
 		// Extract embedded PDF bookmarks/outline
 		extractOutline(doc).then((o) => (app.outline = o));
+
+		onloaded?.(doc);
 
 		// Immediate restoration to saved page with generous bunch lookahead
 		const targetPage = Math.min(Math.max(1, app.currentPage), doc.numPages);
