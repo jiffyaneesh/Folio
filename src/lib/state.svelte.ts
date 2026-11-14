@@ -29,6 +29,11 @@ class AppState {
 	spreadMode = $state<'single' | 'double'>('single');
 	paperMode = $state<'normal' | 'sepia' | 'inverted'>('normal');
 	targetHighlightId = $state<string | null>(null);
+	snipActive = $state(false);
+
+	toggleSnip() {
+		this.snipActive = !this.snipActive;
+	}
 
 	zoomIn() {
 		this.zoomMode = 'auto';
@@ -138,9 +143,11 @@ class AppState {
 		this.totalPages = 0;
 		this.currentPage = 1;
 		this.zoom = 1;
+		this.zoomMode = 'auto';
 		this.outline = [];
 		this.sessionStart = 0;
 		this.zen = false;
+		this.snipActive = false;
 	}
 }
 
@@ -368,4 +375,46 @@ export async function reviewCard(card: FlashcardRecord, quality: number) {
 	const next = schedule(card, quality, Date.now());
 	await db.flashcards.put(next);
 	return next;
+}
+
+export async function addVisualFlashcard(
+	docId: string,
+	page: number,
+	front: string,
+	back: string,
+	imageUrl: string
+) {
+	const card: FlashcardRecord = {
+		id: uid(),
+		docId,
+		highlightId: uid(),
+		front: front || `Figure on Page ${page}`,
+		back,
+		interval: 0,
+		repetition: 0,
+		easeFactor: 2.5,
+		nextReview: Date.now(),
+		createdAt: Date.now(),
+		imageUrl
+	};
+	await db.flashcards.add(card);
+	return card;
+}
+
+export async function addVisualNote(
+	docId: string,
+	page: number,
+	body: string,
+	imageUrl: string
+) {
+	const note: NoteRecord = {
+		id: uid(),
+		docId,
+		page,
+		body,
+		createdAt: Date.now(),
+		imageUrl
+	};
+	await db.notes.add(note);
+	return note;
 }

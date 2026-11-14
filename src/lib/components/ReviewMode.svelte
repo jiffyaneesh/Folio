@@ -73,6 +73,11 @@
 			<button class="card" class:flipped onclick={() => (flipped = !flipped)}>
 				<div class="card-side front">
 					<span class="side-label">Citation Prompt</span>
+					{#if current.imageUrl}
+						<div class="rev-img-box">
+							<img src={current.imageUrl} alt="Flashcard diagram" class="rev-img" />
+						</div>
+					{/if}
 					<p>{current.front}</p>
 					<span class="hint">Tap or press space to reveal answer</span>
 				</div>
@@ -203,6 +208,22 @@
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
+	}
+	.rev-img-box {
+		margin-bottom: 6px;
+		max-height: 220px;
+		display: flex;
+		justify-content: center;
+		background: var(--muted);
+		border-radius: var(--radius-md, 8px);
+		padding: 8px;
+		overflow: hidden;
+	}
+	.rev-img {
+		max-height: 204px;
+		max-width: 100%;
+		border-radius: 6px;
+		object-fit: contain;
 	}
 	.card-side.back {
 		border-top: 1px solid var(--border);

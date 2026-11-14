@@ -35,6 +35,7 @@ export interface NoteRecord {
 	body: string;
 	createdAt: number;
 	highlightId?: string; // optional link back to a highlight
+	imageUrl?: string; // optional clipped diagram / formula image
 }
 
 export interface HighlightRect {
@@ -66,6 +67,7 @@ export interface FlashcardRecord {
 	easeFactor: number;
 	nextReview: number; // epoch ms
 	createdAt: number;
+	imageUrl?: string; // optional clipped diagram / formula image
 }
 
 export interface OutlineItem {

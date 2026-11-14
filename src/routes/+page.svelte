@@ -19,11 +19,13 @@
 	import Library from '$lib/components/Library.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import ShortcutsModal from '$lib/components/ShortcutsModal.svelte';
+	import SnipModal from '$lib/components/SnipModal.svelte';
 	import type { NoteRecord, HighlightRecord, FlashcardRecord, BookmarkRecord } from '$lib/types';
 
 	let view = $state<'library' | 'reader'>('library');
 	let reviewing = $state(false);
 	let shortcutsOpen = $state(false);
+	let snipResult = $state<{ page: number; dataUrl: string } | null>(null);
 	let viewer = $state<PdfViewer | null>(null);
 	let pdfDoc = $state<PDFDocumentProxy | null>(null);
 
@@ -166,6 +168,9 @@
 			} else if (e.key.toLowerCase() === 'w' && view === 'reader' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
 				e.preventDefault();
 				app.cycleZoomMode();
+			} else if (e.key.toLowerCase() === 's' && view === 'reader' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+				e.preventDefault();
+				app.toggleSnip();
 			} else if (e.key.toLowerCase() === 't' && view === 'reader' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
 				e.preventDefault();
 				viewer?.toggleTts();
@@ -278,6 +283,15 @@
 						<Icon name="search" />
 					</button>
 					<button
+						class="icon snip-btn"
+						class:active={app.snipActive}
+						onclick={() => app.toggleSnip()}
+						aria-label="Snip diagram or formula"
+						title={app.snipActive ? 'Snip active: drag on page to capture (Esc to cancel)' : 'Snip diagram or formula (S)'}
+					>
+						<Icon name="crop" />
+					</button>
+					<button
 						class="icon"
 						class:active={tts.active}
 						onclick={() => viewer?.toggleTts()}
@@ -347,7 +361,12 @@
 		<main class="work" class:zen={app.zen}>
 			<section class="pdf-col" class:full={app.zen}>
 				{#if app.pdfData}
-					<PdfViewerComp bind:this={viewer} {highlights} onloaded={(d) => (pdfDoc = d)} />
+					<PdfViewerComp
+						bind:this={viewer}
+						{highlights}
+						onloaded={(d) => (pdfDoc = d)}
+						onsnip={(page, dataUrl) => (snipResult = { page, dataUrl })}
+					/>
 				{/if}
 			</section>
 
@@ -413,6 +432,15 @@
 {/if}
 
 <ShortcutsModal open={shortcutsOpen} onclose={() => (shortcutsOpen = false)} />
+
+{#if snipResult}
+	<SnipModal
+		open={true}
+		page={snipResult.page}
+		dataUrl={snipResult.dataUrl}
+		onclose={() => (snipResult = null)}
+	/>
+{/if}
 
 <style>
 	.loading-reader {

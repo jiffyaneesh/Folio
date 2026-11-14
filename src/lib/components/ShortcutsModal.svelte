@@ -36,6 +36,7 @@
 				{ keys: ['⌘', 'F'], desc: 'Search document text' },
 				{ keys: ['Select text'], desc: 'Highlight color palette' },
 				{ keys: ['⌘', '↵'], desc: 'Save note or flashcard' },
+				{ keys: ['S'], desc: 'Snip diagram / formula box capture' },
 				{ keys: ['T'], desc: 'Toggle Text-to-Speech audio reader' },
 				{ keys: ['?'], desc: 'Show this shortcuts guide' },
 				{ keys: ['Esc'], desc: 'Close open overlay or exit Zen' }

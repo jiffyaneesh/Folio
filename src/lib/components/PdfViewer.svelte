@@ -13,8 +13,9 @@
 	interface Props {
 		highlights: HighlightRecord[];
 		onloaded?: (doc: PDFDocumentProxy) => void;
+		onsnip?: (page: number, dataUrl: string) => void;
 	}
-	let { highlights, onloaded }: Props = $props();
+	let { highlights, onloaded, onsnip }: Props = $props();
 
 	let doc = $state<PDFDocumentProxy | null>(null);
 	let scrollEl = $state<HTMLDivElement | null>(null);
@@ -23,6 +24,15 @@
 	let visiblePages = $state<Set<number>>(new Set([1]));
 	let selectionBtn = $state<{ x: number; y: number } | null>(null);
 	let pendingSel: { page: number; text: string; rects: HighlightRect[] } | null = null;
+	let snipDrag = $state<{
+		page: number;
+		startX: number;
+		startY: number;
+		currentX: number;
+		currentY: number;
+		pageOffsetLeft: number;
+		pageOffsetTop: number;
+	} | null>(null);
 
 	let spreads = $derived.by(() => {
 		if (!doc) return [];
@@ -226,8 +236,83 @@
 		pendingSel = null;
 	}
 
+	function onPointerDown(e: PointerEvent) {
+		if (!app.snipActive || e.button !== 0) return;
+		const pageEl = findPageEl(e.target as Node);
+		if (!pageEl || !scrollEl) return;
+		e.preventDefault();
+		const pageBox = pageEl.getBoundingClientRect();
+		const page = Number(pageEl.dataset.page);
+		const wrapBox = scrollEl.getBoundingClientRect();
+
+		snipDrag = {
+			page,
+			startX: e.clientX - pageBox.left,
+			startY: e.clientY - pageBox.top,
+			currentX: e.clientX - pageBox.left,
+			currentY: e.clientY - pageBox.top,
+			pageOffsetLeft: pageBox.left - wrapBox.left,
+			pageOffsetTop: pageBox.top - wrapBox.top + scrollEl.scrollTop
+		};
+	}
+
+	function onPointerMove(e: PointerEvent) {
+		if (!app.snipActive || !snipDrag || !scrollEl) return;
+		const pageEl = scrollEl.querySelector<HTMLElement>(`[data-page="${snipDrag.page}"]`);
+		if (!pageEl) return;
+		const pageBox = pageEl.getBoundingClientRect();
+		snipDrag.currentX = Math.max(0, Math.min(pageBox.width, e.clientX - pageBox.left));
+		snipDrag.currentY = Math.max(0, Math.min(pageBox.height, e.clientY - pageBox.top));
+	}
+
+	function onPointerUp(e: PointerEvent) {
+		if (!app.snipActive || !snipDrag || !scrollEl) return;
+		const { page, startX, startY, currentX, currentY } = snipDrag;
+		snipDrag = null;
+		app.snipActive = false;
+
+		const x = Math.min(startX, currentX);
+		const y = Math.min(startY, currentY);
+		const w = Math.abs(currentX - startX);
+		const h = Math.abs(currentY - startY);
+
+		if (w < 20 || h < 20) return;
+
+		const pageEl = scrollEl.querySelector<HTMLElement>(`[data-page="${page}"]`);
+		const canvas = pageEl?.querySelector<HTMLCanvasElement>('canvas.pdf-canvas');
+		if (!pageEl || !canvas) return;
+
+		const scaleX = canvas.width / pageEl.clientWidth;
+		const scaleY = canvas.height / pageEl.clientHeight;
+		const sx = Math.round(x * scaleX);
+		const sy = Math.round(y * scaleY);
+		const sw = Math.round(w * scaleX);
+		const sh = Math.round(h * scaleY);
+
+		const cropCanvas = document.createElement('canvas');
+		cropCanvas.width = sw;
+		cropCanvas.height = sh;
+		const ctx = cropCanvas.getContext('2d');
+		if (!ctx) return;
+
+		ctx.imageSmoothingEnabled = true;
+		ctx.imageSmoothingQuality = 'high';
+		ctx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+		const dataUrl = cropCanvas.toDataURL('image/png');
+		cropCanvas.width = 0;
+		cropCanvas.height = 0;
+		onsnip?.(page, dataUrl);
+	}
+
 	function onKey(e: KeyboardEvent) {
 		if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
+		if (e.key === 'Escape' && app.snipActive) {
+			e.preventDefault();
+			app.snipActive = false;
+			snipDrag = null;
+			return;
+		}
 		const step = app.spreadMode === 'double' ? 2 : 1;
 		if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === 'j')
 			goTo(app.currentPage + step);
@@ -237,6 +322,7 @@
 		else if (e.key === '-') app.zoomOut();
 		else if (e.key === '0') app.resetZoom();
 		else if (e.key.toLowerCase() === 'w') app.cycleZoomMode();
+		else if (e.key.toLowerCase() === 's' && !e.metaKey && !e.ctrlKey) app.toggleSnip();
 		else if (e.key.toLowerCase() === 'z') app.zen = !app.zen;
 		else if (e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey) app.toggleSpreadMode();
 		else return;
@@ -313,8 +399,12 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
 	class="viewer"
+	class:snip-mode={app.snipActive}
 	bind:this={scrollEl}
 	onscroll={onScroll}
+	onpointerdown={onPointerDown}
+	onpointermove={onPointerMove}
+	onpointerup={onPointerUp}
 	onmouseup={onMouseUp}
 	ontouchend={onMouseUp}
 	role="region"
@@ -338,6 +428,19 @@
 					{/each}
 				</div>
 			{/each}
+		</div>
+	{/if}
+
+	{#if snipDrag}
+		{@const left = Math.min(snipDrag.startX, snipDrag.currentX) + snipDrag.pageOffsetLeft}
+		{@const top = Math.min(snipDrag.startY, snipDrag.currentY) + snipDrag.pageOffsetTop}
+		{@const width = Math.abs(snipDrag.currentX - snipDrag.startX)}
+		{@const height = Math.abs(snipDrag.currentY - snipDrag.startY)}
+		<div
+			class="snip-box"
+			style="left:{left}px;top:{top}px;width:{width}px;height:{height}px;"
+		>
+			<span class="snip-badge">Crop Diagram</span>
 		</div>
 	{/if}
 
@@ -380,6 +483,34 @@
 		position: relative;
 		background: var(--reader-bg);
 		outline: none;
+	}
+	.viewer.snip-mode {
+		cursor: crosshair !important;
+		user-select: none !important;
+	}
+	.viewer.snip-mode * {
+		user-select: none !important;
+	}
+	.snip-box {
+		position: absolute;
+		border: 2px dashed var(--accent);
+		background: rgba(245, 158, 11, 0.18);
+		box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+		z-index: 50;
+		pointer-events: none;
+		border-radius: 4px;
+	}
+	.snip-badge {
+		position: absolute;
+		top: -24px;
+		left: 0;
+		background: var(--accent);
+		color: #000000;
+		font-size: 11px;
+		font-weight: 600;
+		padding: 2px 6px;
+		border-radius: 4px;
+		white-space: nowrap;
 	}
 	.spread-container {
 		display: flex;

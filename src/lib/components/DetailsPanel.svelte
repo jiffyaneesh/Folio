@@ -396,7 +396,14 @@ tags:
 							</button>
 						</div>
 					</div>
-					<p class="body">{n.body}</p>
+					{#if n.imageUrl}
+						<div class="note-img-box">
+							<img src={n.imageUrl} alt="Clipped snippet" class="note-img" />
+						</div>
+					{/if}
+					{#if n.body}
+						<p class="body">{n.body}</p>
+					{/if}
 				</div>
 			{/each}
 		{:else if app.activeTab === 'highlights'}
@@ -867,6 +874,21 @@ tags:
 		font-size: 13.5px;
 		line-height: 1.6;
 		color: var(--foreground);
+	}
+	.note-img-box {
+		margin-bottom: 8px;
+		border-radius: var(--radius-sm, 6px);
+		overflow: hidden;
+		background: var(--muted);
+		display: flex;
+		justify-content: center;
+		padding: 4px;
+	}
+	.note-img {
+		max-height: 160px;
+		max-width: 100%;
+		border-radius: 4px;
+		object-fit: contain;
 	}
 	.body.quote {
 		border-left: 2.5px solid var(--accent);
