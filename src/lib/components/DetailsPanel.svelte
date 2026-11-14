@@ -218,7 +218,12 @@ tags:
 			md += `## Notes\n\n`;
 			for (const n of standAloneNotes) {
 				md += `### Page ${n.page} · ${new Date(n.createdAt).toLocaleDateString()}\n\n`;
-				md += `${n.body}\n\n`;
+				if (n.imageUrl) {
+					md += `![Page ${n.page} Diagram](${n.imageUrl})\n\n`;
+				}
+				if (n.body) {
+					md += `${n.body}\n\n`;
+				}
 			}
 		}
 
@@ -239,7 +244,10 @@ tags:
 		let tsv = `#separator:tab\n#html:true\n#tags column:3\n`;
 
 		for (const c of flashcards) {
-			const front = c.front.replace(/\t/g, ' ').replace(/\n/g, '<br>');
+			let front = c.front.replace(/\t/g, ' ').replace(/\n/g, '<br>');
+			if (c.imageUrl) {
+				front = `<img src="${c.imageUrl}"><br>` + front;
+			}
 			const back = c.back.replace(/\t/g, ' ').replace(/\n/g, '<br>');
 			const tag = `Folio ${baseName}`;
 			tsv += `"${front}"\t"${back}"\t"${tag}"\n`;
@@ -270,7 +278,12 @@ tags:
 			md += `## Notes (${notes.length})\n\n`;
 			for (const n of notes) {
 				md += `### Page ${n.page} · ${new Date(n.createdAt).toLocaleDateString()}\n`;
-				md += `${n.body}\n\n`;
+				if (n.imageUrl) {
+					md += `![Page ${n.page} Diagram](${n.imageUrl})\n\n`;
+				}
+				if (n.body) {
+					md += `${n.body}\n\n`;
+				}
 			}
 		}
 

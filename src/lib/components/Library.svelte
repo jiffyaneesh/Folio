@@ -3,6 +3,8 @@
 	import { db } from '../db';
 	import { relTime } from '../time';
 	import Icon from './Icon.svelte';
+	import StatsModal from './StatsModal.svelte';
+	import BackupModal from './BackupModal.svelte';
 	import type { DocumentRecord } from '../types';
 
 	interface Props {
@@ -18,6 +20,8 @@
 	let searchQuery = $state('');
 	let sortBy = $state<'recent' | 'name' | 'progress' | 'pages'>('recent');
 	let storageUsage = $state<string | null>(null);
+	let statsOpen = $state(false);
+	let backupOpen = $state(false);
 
 	const q = recentDocsQuery();
 	const sub = q.subscribe((v) => (docs = v));
@@ -67,6 +71,19 @@
 	async function reopen(d: DocumentRecord) {
 		await openDocument(d);
 		onopen();
+	}
+
+	async function downloadDocPdf(e: MouseEvent, d: DocumentRecord) {
+		e.stopPropagation();
+		const fileRec = await db.files.get(d.id);
+		const blob = fileRec?.blob || d.blob;
+		if (!blob) return;
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `${d.name}.pdf`;
+		a.click();
+		URL.revokeObjectURL(url);
 	}
 
 	let editingId = $state<string | null>(null);
@@ -135,6 +152,22 @@
 	</div>
 
 	<div class="top-nav">
+		<button
+			class="nav-btn"
+			onclick={() => (statsOpen = true)}
+			aria-label="Study &amp; Reading Insights"
+			title="Study &amp; Reading Analytics"
+		>
+			<Icon name="bar_chart" />
+		</button>
+		<button
+			class="nav-btn"
+			onclick={() => (backupOpen = true)}
+			aria-label="Library Backup &amp; Restore"
+			title="Backup &amp; Restore Library"
+		>
+			<Icon name="backup" />
+		</button>
 		<button
 			class="nav-btn"
 			onclick={() => app.toggleTheme()}
@@ -281,6 +314,14 @@
 								{/if}
 								<div class="card-actions">
 									<button
+										class="card-act-btn dl-btn"
+										onclick={(e) => downloadDocPdf(e, d)}
+										aria-label={`Download PDF ${d.name}`}
+										title="Download PDF file"
+									>
+										<Icon name="file_download" />
+									</button>
+									<button
 										class="card-act-btn edit-btn"
 										onclick={(e) => startRename(e, d)}
 										aria-label={`Rename ${d.name}`}
@@ -378,6 +419,9 @@
 		<span>v{version}</span>
 	</footer>
 </div>
+
+<StatsModal open={statsOpen} onclose={() => (statsOpen = false)} />
+<BackupModal open={backupOpen} onclose={() => (backupOpen = false)} />
 
 <style>
 	.library {
